@@ -413,6 +413,11 @@ export class MorphingMassController {
     this.pointerYSpring.setTarget(THREE.MathUtils.clamp(normalizedY, -1, 1));
   }
 
+  resetPointer() {
+    this.pointerXSpring.setTarget(0);
+    this.pointerYSpring.setTarget(0);
+  }
+
   setPreset(preset: any) {
     this.preset = { ...BASE_PRESET, ...preset };
     this.material.uniforms.uSeed.value = this.preset.seed;

@@ -396,6 +396,11 @@ export class MorphingMassController {
     this.targetPointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   }
 
+  resetPointer() {
+    this.targetPointer.x = 0;
+    this.targetPointer.y = 0;
+  }
+
   private handleResize() {
     const rect = this.container.getBoundingClientRect();
     this.camera.aspect = rect.width / rect.height;

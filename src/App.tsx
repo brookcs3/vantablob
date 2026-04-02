@@ -46,23 +46,24 @@ function MorphingBlob({
     const handlePointerLeave = () => {
       controller.setActive(false);
       controller.setEnergy(0.18);
+          controller.resetPointer();
     };
 
     const handleFocus = () => controller.setActive(true);
     const handleBlur = () => controller.setActive(false);
 
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerdown', handlePointerDown);
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointerleave', handlePointerLeave);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerdown', handlePointerDown);
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointerleave', handlePointerLeave);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
       controller.destroy();
@@ -114,23 +115,24 @@ function OldMorphingBlob({
     const handlePointerLeave = () => {
       controller.setActive(false);
       controller.setEnergy(0.18);
+          controller.resetPointer();
     };
 
     const handleFocus = () => controller.setActive(true);
     const handleBlur = () => controller.setActive(false);
 
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerdown', handlePointerDown);
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointerleave', handlePointerLeave);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerdown', handlePointerDown);
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointerleave', handlePointerLeave);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
       controller.destroy();
@@ -185,23 +187,24 @@ function GimbalMorphingBlob({
     const handlePointerLeave = () => {
       controller.setActive(false);
       controller.setEnergy(0.18);
+          controller.resetPointer();
     };
 
     const handleFocus = () => controller.setActive(true);
     const handleBlur = () => controller.setActive(false);
 
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerdown', handlePointerDown);
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointerleave', handlePointerLeave);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerdown', handlePointerDown);
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointerleave', handlePointerLeave);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
       controller.destroy();
@@ -259,23 +262,24 @@ function HistoricMorphingBlob({
     const handlePointerLeave = () => {
       controller.setActive(false);
       controller.setEnergy(0.18);
+          controller.resetPointer();
     };
 
     const handleFocus = () => controller.setActive(true);
     const handleBlur = () => controller.setActive(false);
 
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerdown', handlePointerDown);
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointerleave', handlePointerLeave);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerdown', handlePointerDown);
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointerleave', handlePointerLeave);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
       controller.destroy();
@@ -327,23 +331,24 @@ function MusicMorphingBlob({
     const handlePointerLeave = () => {
       controller.setActive(false);
       controller.setEnergy(0.18);
+          controller.resetPointer();
     };
 
     const handleFocus = () => controller.setActive(true);
     const handleBlur = () => controller.setActive(false);
 
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerdown', handlePointerDown);
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointerleave', handlePointerLeave);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerdown', handlePointerDown);
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointerleave', handlePointerLeave);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
       controller.destroy();

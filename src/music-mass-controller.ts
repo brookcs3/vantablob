@@ -57,6 +57,20 @@ class AudioAnalyzer {
   bass: number = 0;
   treble: number = 0;
   onset: number = 0;
+  squelch: number = 0;
+  centroid: number = 0;
+  similarity: number = 1;
+  
+  // Advanced 303 Metrics
+  flux: number = 0;
+  pitchDelta: number = 0;
+  prominence: number = 0;
+  hnr: number = 0;
+  vibration: number = 0;
+
+  private history: Float32Array[] = [];
+  private prevSpectrum: Float32Array | null = null;
+  private prevPitchBin: number = 0;
 
   async start() {
     if (this.context) return;
@@ -89,17 +103,126 @@ class AudioAnalyzer {
     let trebleSum = 0;
     let totalSum = 0;
     
+    let squelchPeak = 0;
+    let squelchSum = 0;
+    let squelchCount = 0;
+
+    let weightedSum = 0;
+
+    const currentSpectrum = new Float32Array(512);
+    let fluxSum = 0;
+    
     // 512 bins up to ~22050Hz. Each bin is ~43Hz.
-    // Bass: 0-4 bins (0-172Hz)
-    for (let i = 0; i < 5; i++) bassSum += this.dataArray[i];
-    // Treble: 116-348 bins (5000Hz - 15000Hz)
-    for (let i = 116; i < 348; i++) trebleSum += this.dataArray[i];
-    // Onset/Total
-    for (let i = 0; i < 512; i++) totalSum += this.dataArray[i];
+    for (let i = 0; i < 512; i++) {
+        const val = this.dataArray[i];
+        currentSpectrum[i] = val;
+        totalSum += val;
+        weightedSum += val * i;
+
+        if (this.prevSpectrum) {
+            const diff = val - this.prevSpectrum[i];
+            if (diff > 0) fluxSum += diff;
+        }
+
+        // Bass: 0-4 bins (0-172Hz)
+        if (i < 5) bassSum += val;
+        // Treble: 116-348 bins (5000Hz - 15000Hz)
+        if (i >= 116 && i < 348) trebleSum += val;
+
+        // Squelch band: roughly 500Hz to 2000Hz (bins 11 to 46)
+        if (i >= 11 && i <= 46) {
+            squelchSum += val;
+            if (val > squelchPeak) squelchPeak = val;
+            squelchCount++;
+        }
+    }
 
     this.bass = (bassSum / 5) / 255.0;
     this.treble = (trebleSum / 232) / 255.0;
     this.onset = (totalSum / 512) / 255.0;
+
+    const squelchMean = (squelchSum / squelchCount) || 1;
+    this.squelch = Math.min((squelchPeak / squelchMean) / 10.0, 1.0);
+
+    this.centroid = totalSum > 0 ? (weightedSum / totalSum) / 512.0 : 0;
+    this.flux = this.prevSpectrum ? fluxSum / (512 * 255.0) : 0;
+    this.prevSpectrum = currentSpectrum;
+
+    // --- ADVANCED 303 ANALYSIS ---
+    
+    // 1. Harmonic Product Spectrum (HPS) for Pitch Tracking
+    let maxHPS = 0;
+    let peakBin = 1;
+    // Search fundamental between ~43Hz and ~1000Hz (bins 1 to 23)
+    for (let i = 1; i < 24; i++) {
+        let hps = currentSpectrum[i] / 255.0;
+        if (i * 2 < 512) hps *= (currentSpectrum[i * 2] / 255.0);
+        if (i * 3 < 512) hps *= (currentSpectrum[i * 3] / 255.0);
+        if (i * 4 < 512) hps *= (currentSpectrum[i * 4] / 255.0);
+        if (i * 5 < 512) hps *= (currentSpectrum[i * 5] / 255.0);
+        
+        if (hps > maxHPS) {
+            maxHPS = hps;
+            peakBin = i;
+        }
+    }
+
+    // 2. Pitch Derivative (Slide/Stretch)
+    this.pitchDelta = Math.abs(peakBin - this.prevPitchBin);
+    this.prevPitchBin = peakBin;
+
+    // 3. Peak-to-Average Ratio (Prominence / Whistle)
+    let windowSize = 3;
+    let localSum = 0;
+    let count = 0;
+    for (let i = Math.max(0, peakBin - windowSize); i <= Math.min(511, peakBin + windowSize); i++) {
+        if (i !== peakBin) {
+            localSum += currentSpectrum[i];
+            count++;
+        }
+    }
+    let localAvg = count > 0 ? (localSum / count) : 1;
+    this.prominence = currentSpectrum[peakBin] / Math.max(1, localAvg);
+
+    // 4. Harmonic-to-Noise Ratio (HNR / Growl Vibration)
+    let harmonicEnergy = 0;
+    let filteredTotalEnergy = 0;
+    // Filtered range: ~200Hz - 2kHz (bins 5 to 46) to ignore kick drum
+    for (let i = 5; i <= 46; i++) {
+        filteredTotalEnergy += currentSpectrum[i];
+    }
+    for (let m = 1; m <= 5; m++) {
+        let bin = peakBin * m;
+        if (bin >= 5 && bin <= 46) {
+            harmonicEnergy += currentSpectrum[bin];
+        }
+    }
+    let noiseEnergy = Math.max(0.1, filteredTotalEnergy - harmonicEnergy);
+    this.hnr = harmonicEnergy / noiseEnergy;
+    
+    // Vibration spikes when HNR is low (noisy/growl) and overall energy is present
+    let isActive = filteredTotalEnergy > 1000;
+    this.vibration = isActive ? Math.max(0, 1.0 - (this.hnr / 5.0)) : 0.0;
+
+    // --- END ADVANCED ANALYSIS ---
+
+    this.history.push(currentSpectrum);
+    if (this.history.length > 10) this.history.shift();
+
+    if (this.history.length > 1) {
+        let avgSpectrum = new Float32Array(512);
+        for (let h of this.history) {
+            for (let i = 0; i < 512; i++) avgSpectrum[i] += h[i];
+        }
+        let dot = 0, normA = 0, normB = 0;
+        for (let i = 0; i < 512; i++) {
+            avgSpectrum[i] /= this.history.length;
+            dot += currentSpectrum[i] * avgSpectrum[i];
+            normA += currentSpectrum[i] ** 2;
+            normB += avgSpectrum[i] ** 2;
+        }
+        this.similarity = (normA > 0 && normB > 0) ? dot / (Math.sqrt(normA) * Math.sqrt(normB)) : 1.0;
+    }
   }
 
   stop() {
@@ -135,7 +258,23 @@ function createMassMaterial() {
       uJarvis: { value: 0.0 },
       uBass: { value: 0.0 },
       uTreble: { value: 0.0 },
-      uOnset: { value: 0.0 }
+      uOnset: { value: 0.0 },
+      uSquelch: { value: 0.0 },
+      uCentroid: { value: 0.0 },
+      uSimilarity: { value: 1.0 },
+      uTubeBlend: { value: 0.0 },
+      uSquiggleBlend: { value: 0.0 },
+      uFlowState: { value: 0.0 },
+      uBend: { value: 0.0 },
+      uBendDir1: { value: new THREE.Vector3(0, 1, 0) },
+      uBendDir2: { value: new THREE.Vector3(1, 0, 0) },
+      uBendFreq: { value: 4.0 },
+      uSplit: { value: 0.0 },
+      uSplitAxis: { value: new THREE.Vector3(0, 1, 0) },
+      uFlux: { value: 0.0 },
+      uPitchDelta: { value: 0.0 },
+      uProminence: { value: 1.0 },
+      uVibration: { value: 0.0 }
     },
     vertexShader: `
       varying vec3 vWorldNormal;
@@ -156,6 +295,22 @@ function createMassMaterial() {
       uniform float uBass;
       uniform float uTreble;
       uniform float uOnset;
+      uniform float uSquelch;
+      uniform float uCentroid;
+      uniform float uSimilarity;
+      uniform float uTubeBlend;
+      uniform float uSquiggleBlend;
+      uniform float uFlowState;
+      uniform float uBend;
+      uniform vec3 uBendDir1;
+      uniform vec3 uBendDir2;
+      uniform float uBendFreq;
+      uniform float uSplit;
+      uniform vec3 uSplitAxis;
+      uniform float uFlux;
+      uniform float uPitchDelta;
+      uniform float uProminence;
+      uniform float uVibration;
 
       vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
       float mod289(float x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -219,7 +374,13 @@ function createMassMaterial() {
       }
 
       vec3 getDisplacedPosition(vec3 baseNormal, float t) {
-        vec3 warpedNormal = normalize(baseNormal + snoise(baseNormal * 2.5 + t * 0.5) * 0.25);
+        // Twist based on squelch
+        float twistAngle = uSquelch * 3.0 * baseNormal.y;
+        mat2 twistMat = mat2(cos(twistAngle), -sin(twistAngle), sin(twistAngle), cos(twistAngle));
+        vec3 twistedNormal = baseNormal;
+        twistedNormal.xz = twistMat * twistedNormal.xz;
+
+        vec3 warpedNormal = normalize(twistedNormal + snoise(twistedNormal * 2.5 + t * 0.5) * 0.25);
         
         vec3 m1 = normalize(vec3(sin(t * 0.8 + uSeed), cos(t * 0.9 + uSeed), sin(t * 0.7)));
         vec3 m2 = normalize(vec3(cos(t * 1.1), sin(t * 0.6 + uSeed), -cos(t * 0.8)));
@@ -234,6 +395,9 @@ function createMassMaterial() {
         float i5 = max(0.0, dot(warpedNormal, m5));
         
         float sharpness = uLobeCountBias - (uBass * 2.0); // Bass makes lobes fatter
+        // Prominence (Peak-to-Average) makes the lobes sharper (whistling) - dialed back for surface effect
+        sharpness *= clamp(1.0 + (uProminence - 1.0) * 0.15, 0.8, 1.4);
+        
         i1 = pow(i1, max(1.0, sharpness));
         i2 = pow(i2, max(1.0, sharpness));
         i3 = pow(i3, max(1.0, sharpness));
@@ -241,31 +405,87 @@ function createMassMaterial() {
         i5 = pow(i5, max(1.0, sharpness));
         
         float pull = i1 + i2 + i3 + i4 + i5;
+        pull = mix(pull, smoothstep(0.0, 1.0, pull), uFlowState); // Smoother pull in flow mode
         
-        float fluidNoise = snoise(baseNormal * 1.5 - t * 0.4) * 0.5 + 0.5;
+        // Centroid increases noise frequency, Flux increases morph speed (subtle)
+        float morphSpeed = t * (0.4 + uFlux * 1.5);
+        float fluidNoise = snoise(twistedNormal * (1.5 + uCentroid * 10.0) - morphSpeed) * 0.5 + 0.5;
         
         float r = 0.68;
         
         // Base fluid dynamics
-        r += pull * (uAgitationStrength + uEnergy * 0.2);
-        r += fluidNoise * uEdgeRoughness;
+        float currentAgitation = mix(uAgitationStrength + uEnergy * 0.2, 0.1, uFlowState);
+        r += pull * currentAgitation;
+        r += fluidNoise * uEdgeRoughness * mix(1.0, 0.5, uFlowState);
         
         // --- MUSIC REACTIVITY ---
         // Bass: Throbbing expansion and deep distortion
-        float bassThrob = uBass * 0.25 * (1.0 + snoise(baseNormal * 3.0 - t * 4.0));
-        r += bassThrob;
+        float bassThrob = uBass * 0.25 * (1.0 + snoise(twistedNormal * 3.0 - t * 4.0));
+        r += bassThrob * mix(1.0, 0.4, uFlowState); // Less throb in flow
         
         // Treble: High frequency jagged spikes
-        float trebleSpikes = uTreble * 0.15 * snoise(baseNormal * 20.0 + t * 15.0);
-        r += trebleSpikes;
+        float trebleSpikes = uTreble * 0.15 * snoise(twistedNormal * 20.0 + t * 15.0);
+        r += trebleSpikes * (1.0 - uFlowState); // No spikes in flow
         
         // Onset: Quick overall expansion
-        r += uOnset * 0.08;
+        r += uOnset * 0.08 * (1.0 - uFlowState * 0.5);
         
-        float pointerPush = dot(baseNormal.xy, uPointer) * 0.15 * (0.5 + uPresence);
+        // Vibration (Growl / HNR): High frequency noise when sound breaks up (surface level)
+        float growlNoise = snoise(twistedNormal * 40.0 + t * 20.0);
+        r += growlNoise * uVibration * 0.03;
+        
+        // MAGNET EFFECT (Pointer interaction trumps music)
+        float magnetStrength = 0.35 + uPresence * 0.8;
+        float pointerPush = dot(baseNormal.xy, uPointer) * magnetStrength;
         r += pointerPush;
         
-        return baseNormal * r * uBaseScale;
+        // Mitosis / Split effect
+        float splitDist = dot(baseNormal, uSplitAxis);
+        float isPositiveSide = step(0.0, splitDist) * 2.0 - 1.0; // -1.0 or 1.0
+        
+        // Pinch the equator to 0 to close the mesh holes
+        float pinch = smoothstep(0.0, 0.25, abs(splitDist));
+        r *= mix(1.0, pinch, uSplit);
+        
+        vec3 pos = baseNormal * r * uBaseScale;
+        
+        // Pull halves apart completely
+        pos += uSplitAxis * isPositiveSide * uSplit * 1.8;
+        
+        // Pitch Delta (Slide/Stretch)
+        // Stretches the blob vertically when the pitch slides rapidly (prominent)
+        pos.y *= 1.0 + clamp(uPitchDelta * 0.035, 0.0, 0.6);
+        
+        // Bend effect (Anisotropic zoom equivalent)
+        float bPhase = dot(baseNormal, uBendDir1) * uBendFreq + t * 8.0;
+        pos += uBendDir2 * sin(bPhase) * uBend * 0.6;
+        pos += uBendDir1 * (abs(cos(bPhase * 0.5)) - 0.5) * uBend * 1.2;
+        
+        // --- CHOREOGRAPHY / DANCE MOVES ---
+        // Tube effect
+        float tBlend = clamp(uTubeBlend, -1.0, 1.0);
+        if (tBlend > 0.0) {
+            pos.y *= (1.0 + tBlend * 2.0); // Up to 3x taller
+            pos.xz *= (1.0 - tBlend * 0.6); // Up to 0.4x narrower
+        } else {
+            pos.y *= (1.0 + tBlend * 0.8); // Up to 0.2x shorter (tBlend is negative)
+            pos.xz *= (1.0 - tBlend * 0.8); // Up to 1.8x wider
+        }
+        
+        // Squiggle / Dance effect
+        float sBlend = clamp(uSquiggleBlend, 0.0, 1.5);
+        if (sBlend > 0.0) {
+            // High frequency wiggle
+            pos.x += sin(baseNormal.y * 8.0 + t * 5.0) * 0.4 * sBlend;
+            pos.z += cos(baseNormal.y * 7.0 + t * 4.5) * 0.4 * sBlend;
+            
+            // Low frequency bend (makes it loop/curve)
+            float bend = sin(baseNormal.y * 3.14159); // 0 at poles, 1 at equator
+            pos.x += bend * 0.6 * cos(t * 3.0) * sBlend;
+            pos.y += bend * 0.6 * sin(t * 3.0) * sBlend;
+        }
+        
+        return pos;
       }
 
       void main() {
@@ -303,6 +523,10 @@ function createMassMaterial() {
       uniform float uBass;
       uniform float uTreble;
       uniform float uOnset;
+      uniform float uSquelch;
+      uniform float uCentroid;
+      uniform float uSimilarity;
+      uniform float uFlowState;
 
       varying vec3 vWorldNormal;
       varying vec3 vViewPosition;
@@ -337,8 +561,12 @@ function createMassMaterial() {
         vec3 finalColor = baseColor + diffuse1 + diffuse2 + rimColor + specular1;
         
         // --- MUSIC REACTIVITY (COLOR) ---
+        // Reverse gradient smoothing for small intensity changes
+        float intensity = uOnset * 0.6 + uBass * 0.4;
+        float smoothedIntensity = 1.0 - exp(-intensity * 3.0);
+        
         // Bass adds a deep purple/blue throb to the shadows
-        vec3 bassColor = vec3(0.2, 0.0, 0.5) * uBass * 2.0;
+        vec3 bassColor = vec3(0.2, 0.0, 0.5) * smoothedIntensity * 2.0;
         finalColor += bassColor * (1.0 - diff1); 
         
         // Treble adds a sharp cyan/white crackle to the highlights
@@ -346,8 +574,26 @@ function createMassMaterial() {
         finalColor += trebleColor * spec1;
         
         // Onset flashes the rim light bright pink/red
-        vec3 onsetColor = vec3(1.0, 0.2, 0.5) * uOnset * 1.2;
+        vec3 onsetColor = vec3(1.0, 0.2, 0.5) * smoothedIntensity * 1.2;
         finalColor += onsetColor * rim;
+
+        // Similarity drop (key change / chaos) -> Invert colors / glitch
+        float glitch = smoothstep(0.95, 0.7, uSimilarity) * (1.0 - uFlowState); // Disable glitch in flow
+        if (glitch > 0.0) {
+            // Chromatic aberration / inversion effect
+            vec3 inverted = vec3(1.0) - finalColor;
+            // Shift RGB channels slightly for chroma effect
+            finalColor.r = mix(finalColor.r, inverted.r, glitch * 0.8);
+            finalColor.g = mix(finalColor.g, inverted.g, glitch * 0.9);
+            finalColor.b = mix(finalColor.b, inverted.b, glitch * 0.7);
+            // Add some erratic brightness
+            finalColor += vec3(0.2, 0.8, 0.4) * glitch * uSquelch;
+        }
+        
+        // Add a smooth iridescent sheen in FLOW mode
+        float flowFresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), 2.0);
+        vec3 flowSheen = oilPalette(flowFresnel + uTime * 0.3) * flowFresnel;
+        finalColor = mix(finalColor, finalColor + flowSheen, uFlowState);
 
         finalColor = mix(finalColor, vec3(0.0), uVantablack);
 
@@ -380,6 +626,9 @@ export class MusicMassController {
   pointer: THREE.Vector2;
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
+  bgScene: THREE.Scene;
+  bgCamera: THREE.OrthographicCamera;
+  bgMaterial: THREE.ShaderMaterial;
   camera: THREE.PerspectiveCamera;
   massGroup: THREE.Group;
   material: THREE.ShaderMaterial;
@@ -389,11 +638,26 @@ export class MusicMassController {
   energySpring: SpringValue;
   pointerXSpring: SpringValue;
   pointerYSpring: SpringValue;
+  tubeSpring: SpringValue;
+  squiggleSpring: SpringValue;
   clock: THREE.Clock;
   frameId: number;
   isDestroyed: boolean;
   handleResize: () => void;
   audioAnalyzer: AudioAnalyzer;
+  shaderTime: number = 0;
+  danceState: number = 0;
+  danceCooldown: number = 0;
+  
+  // Director state
+  directorMode: 'CHAOS' | 'FLOW' = 'CHAOS';
+  lastSwitchTime: number = 0;
+  flowInterval: number = 0;
+  flowDuration: number = 0;
+  flowState: number = 0;
+  bendSpring: SpringValue;
+  splitSpring: SpringValue;
+  effectCooldown: number = 0;
 
   constructor(container: HTMLElement, options: any = {}) {
     this.container = container;
@@ -415,6 +679,65 @@ export class MusicMassController {
     this.container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
+    
+    // Background Scene for Vignette and Dynamic Color
+    this.bgScene = new THREE.Scene();
+    this.bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    this.bgMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uBass: { value: 0 },
+        uOnset: { value: 0 },
+        uBaseColor: { value: new THREE.Color(this.preset.backgroundColor) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        uniform float uBass;
+        uniform float uOnset;
+        uniform vec3 uBaseColor;
+        varying vec2 vUv;
+
+        vec3 palette(float t) {
+            return vec3(0.5) + vec3(0.5) * cos(6.28318 * (vec3(1.0, 1.0, 1.0) * t + vec3(0.0, 0.33, 0.67)));
+        }
+
+        void main() {
+            vec2 uv = vUv * 2.0 - 1.0;
+            float dist = length(uv);
+            
+            // Vignette
+            float vignette = smoothstep(1.5, 0.2, dist);
+            
+            // Dynamic color variance on beat (every breath)
+            // Reverse gradient: smooths with more gradual changes for small intensity changes
+            float intensity = uOnset * 0.8 + uBass * 0.5;
+            float colorPhase = uTime * 0.05 + (1.0 - exp(-intensity * 2.0)) * 0.5;
+            vec3 dynamicColor = palette(colorPhase);
+            
+            // Mix base color with dynamic color based on intensity
+            vec3 finalColor = mix(uBaseColor, dynamicColor, intensity * 0.3);
+            
+            // Add subtle flash on beat
+            finalColor += vec3(0.1, 0.15, 0.2) * uOnset * (1.0 - dist * 0.5);
+            
+            // Apply vignette
+            finalColor *= vignette;
+            
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+      `,
+      depthWrite: false
+    });
+    const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.bgMaterial);
+    this.bgScene.add(bgMesh);
+
     this.camera = new THREE.PerspectiveCamera(18, 1, 0.1, 100);
     this.camera.position.set(0, 0.04, 10.8);
 
@@ -430,6 +753,13 @@ export class MusicMassController {
     this.energySpring = new SpringValue(DEFAULT_ENERGY, { stiffness: 34, damping: 6.4 });
     this.pointerXSpring = new SpringValue(0, { stiffness: 20, damping: 7.8 });
     this.pointerYSpring = new SpringValue(0, { stiffness: 20, damping: 7.8 });
+    this.tubeSpring = new SpringValue(0, { stiffness: 8, damping: 6 });
+    this.squiggleSpring = new SpringValue(0, { stiffness: 10, damping: 5 });
+    this.bendSpring = new SpringValue(0, { stiffness: 15, damping: 4 });
+    this.splitSpring = new SpringValue(0, { stiffness: 40, damping: 8 });
+
+    this.flowInterval = 14.0 + Math.random() * 14.0;
+    this.flowDuration = 2.2 + Math.random() * 2.0;
 
     this.clock = new THREE.Clock();
     this.frameId = 0;
@@ -463,6 +793,11 @@ export class MusicMassController {
     this.pointerYSpring.setTarget(THREE.MathUtils.clamp(normalizedY, -1, 1));
   }
 
+  resetPointer() {
+    this.pointerXSpring.setTarget(0);
+    this.pointerYSpring.setTarget(0);
+  }
+
   setPreset(preset: any) {
     this.preset = { ...BASE_PRESET, ...preset };
     this.material.uniforms.uSeed.value = this.preset.seed;
@@ -475,6 +810,9 @@ export class MusicMassController {
     this.material.uniforms.uBlobColor.value.set(this.preset.fillColor);
     
     this.renderer.setClearColor(this.preset.backgroundColor, 1);
+    if (this.bgMaterial) {
+      this.bgMaterial.uniforms.uBaseColor.value.set(this.preset.backgroundColor);
+    }
     
     if (this.container.parentElement) {
       this.container.parentElement.style.backgroundColor = this.preset.backgroundColor;
@@ -526,18 +864,128 @@ export class MusicMassController {
     }
 
     const deltaSeconds = Math.min(this.clock.getDelta(), 0.033);
-    const elapsed = this.clock.elapsedTime;
     const active = this.activeSpring.update(deltaSeconds);
     const energy = this.energySpring.update(deltaSeconds);
     const pointerX = this.pointerXSpring.update(deltaSeconds);
     const pointerY = this.pointerYSpring.update(deltaSeconds);
+    const tubeBlend = this.tubeSpring.update(deltaSeconds);
+    const squiggleBlend = this.squiggleSpring.update(deltaSeconds);
+    const bendBlend = this.bendSpring.update(deltaSeconds);
+    const splitBlend = this.splitSpring.update(deltaSeconds);
 
     this.pointer.set(pointerX, pointerY);
     
     // Update audio features
     this.audioAnalyzer.update();
 
-    this.material.uniforms.uTime.value = elapsed;
+    const now = this.clock.elapsedTime;
+    if (this.lastSwitchTime === 0) this.lastSwitchTime = now;
+
+    // --- DIRECTOR LOGIC ---
+    if (this.directorMode === 'CHAOS') {
+        const timeInChaos = now - this.lastSwitchTime;
+        const minChaosTime = 5.0; // Minimum time in chaos before an early flow can trigger
+        
+        // Detect a drop in drums/energy or a significant section change
+        const isDropOrCut = this.audioAnalyzer.similarity < 0.75 || (this.audioAnalyzer.bass < 0.2 && this.audioAnalyzer.onset < 0.1);
+        const isOverdue = timeInChaos > this.flowInterval; // 14-28 seconds
+        
+        if ((timeInChaos > minChaosTime && isDropOrCut) || isOverdue) {
+            this.directorMode = 'FLOW';
+            this.lastSwitchTime = now;
+            this.flowDuration = 3.0 + Math.random() * 4.0;
+            console.log(">>> DIRECTOR: LET IT FLOW (" + (isOverdue ? "Overdue" : "Audio Drop") + ")");
+            
+            // --- TRIGGER SUDDEN EFFECT ON FLOW / DROP ---
+            if (Math.random() > 0.5) {
+                // BEND
+                this.bendSpring.setTarget(1.0);
+                const dir1 = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                const dir2 = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                this.material.uniforms.uBendDir1.value.copy(dir1);
+                this.material.uniforms.uBendDir2.value.copy(dir2);
+                this.material.uniforms.uBendFreq.value = 2.0 + Math.random() * 6.0;
+                setTimeout(() => {
+                    if (!this.isDestroyed) this.bendSpring.setTarget(0.0);
+                }, 1000 + Math.random() * 500); // Hold the bend for 1-1.5s
+            } else {
+                // SPLIT (Mitosis)
+                this.splitSpring.setTarget(1.0);
+                const axis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                this.material.uniforms.uSplitAxis.value.copy(axis);
+                setTimeout(() => {
+                    if (!this.isDestroyed) this.splitSpring.setTarget(0.0);
+                }, 1200 + Math.random() * 600); // Hold the split for 1.2-1.8s
+            }
+        }
+    } else {
+        if (now - this.lastSwitchTime > this.flowDuration) {
+            this.directorMode = 'CHAOS';
+            this.lastSwitchTime = now;
+            this.flowInterval = 14.0 + Math.random() * 14.0;
+            console.log(">>> DIRECTOR: CUT. Back to Chaos.");
+            this.tubeSpring.setTarget(0);
+            this.squiggleSpring.setTarget(0);
+        }
+    }
+
+    const targetFlow = this.directorMode === 'FLOW' ? 1.0 : 0.0;
+    this.flowState += (targetFlow - this.flowState) * deltaSeconds * 3.0;
+
+    // --- CHOREOGRAPHY LOGIC ---
+    this.danceCooldown -= deltaSeconds;
+    
+    if (this.directorMode === 'CHAOS') {
+        // Trigger dance move on big drops/changes
+        if (this.danceCooldown <= 0 && this.audioAnalyzer.similarity < 0.8 && this.audioAnalyzer.onset > 0.3) {
+            // Pick a random state from 1 to 4
+            this.danceState = Math.floor(Math.random() * 4) + 1;
+            this.danceCooldown = 3.0 + Math.random() * 3.0; // 3 to 6 seconds
+            
+            switch(this.danceState) {
+                case 1: // Long Tube Loop
+                    this.tubeSpring.setTarget(1.0);
+                    this.squiggleSpring.setTarget(0.8);
+                    break;
+                case 2: // Dancing Squiggle
+                    this.tubeSpring.setTarget(0.2);
+                    this.squiggleSpring.setTarget(1.2);
+                    break;
+                case 3: // Flattened Wiggle
+                    this.tubeSpring.setTarget(-0.7);
+                    this.squiggleSpring.setTarget(0.5);
+                    break;
+                case 4: // Tall & Still
+                    this.tubeSpring.setTarget(0.8);
+                    this.squiggleSpring.setTarget(0.1);
+                    break;
+            }
+        }
+        
+        // Revert to normal if no big drops happen for a while after cooldown
+        if (this.danceCooldown <= -2.0 && this.danceState !== 0) {
+            this.danceState = 0;
+            this.tubeSpring.setTarget(0);
+            this.squiggleSpring.setTarget(0);
+            this.danceCooldown = 1.0; // Short cooldown before it can dance again
+        }
+    } else {
+        // FLOW mode choreography - smooth sweeping motions
+        const flowTime = now - this.lastSwitchTime;
+        this.tubeSpring.setTarget(Math.sin(flowTime * 1.2) * 0.8);
+        this.squiggleSpring.setTarget(0.4 + Math.cos(flowTime * 0.8) * 0.6);
+    }
+
+    // Time manipulation based on audio
+    let timeSpeed = 1.0;
+    if (this.audioAnalyzer.treble > 0.5) {
+        timeSpeed = -1.5; // Rewind on high hats
+    } else if (this.audioAnalyzer.bass > 0.6) {
+        timeSpeed = 2.0; // Fast forward on heavy sub
+    }
+    this.shaderTime += deltaSeconds * timeSpeed;
+
+    this.material.uniforms.uTime.value = this.shaderTime;
     this.material.uniforms.uEnergy.value = energy;
     this.material.uniforms.uPresence.value = active;
     this.material.uniforms.uPointer.value.copy(this.pointer);
@@ -546,12 +994,35 @@ export class MusicMassController {
     this.material.uniforms.uBass.value = this.audioAnalyzer.bass;
     this.material.uniforms.uTreble.value = this.audioAnalyzer.treble;
     this.material.uniforms.uOnset.value = this.audioAnalyzer.onset;
+    this.material.uniforms.uSquelch.value = this.audioAnalyzer.squelch;
+    this.material.uniforms.uCentroid.value = this.audioAnalyzer.centroid;
+    this.material.uniforms.uSimilarity.value = this.audioAnalyzer.similarity;
+    this.material.uniforms.uTubeBlend.value = tubeBlend;
+    this.material.uniforms.uSquiggleBlend.value = squiggleBlend;
+    this.material.uniforms.uFlowState.value = this.flowState;
+    this.material.uniforms.uBend.value = bendBlend;
+    this.material.uniforms.uSplit.value = splitBlend;
+    
+    // Advanced 303 metrics
+    this.material.uniforms.uFlux.value = this.audioAnalyzer.flux;
+    this.material.uniforms.uPitchDelta.value = this.audioAnalyzer.pitchDelta;
+    this.material.uniforms.uProminence.value = this.audioAnalyzer.prominence;
+    this.material.uniforms.uVibration.value = this.audioAnalyzer.vibration;
+
+    // Update Background Shader Uniforms
+    this.bgMaterial.uniforms.uTime.value = this.shaderTime;
+    this.bgMaterial.uniforms.uBass.value = this.audioAnalyzer.bass;
+    this.bgMaterial.uniforms.uOnset.value = this.audioAnalyzer.onset;
 
     this.massGroup.rotation.y = pointerX * 0.18 + active * 0.05;
     this.massGroup.rotation.x = pointerY * 0.08 - 0.08 - active * 0.02;
     this.massGroup.position.y = pointerY * 0.08 + active * 0.06;
     this.massGroup.position.x = pointerX * 0.18;
 
+    this.renderer.autoClear = false;
+    this.renderer.clear();
+    this.renderer.render(this.bgScene, this.bgCamera);
+    this.renderer.clearDepth();
     this.renderer.render(this.scene, this.camera);
     this.frameId = window.requestAnimationFrame(this.animate);
   }
