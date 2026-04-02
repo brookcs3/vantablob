@@ -1,52 +1,63 @@
-const BASE_FILL_COLOR = "#040404"; // Almost black, glossy
+export interface MassPreset {
+  name: string;
+  fillColor: string;
+  backgroundColor: string;
+  baseScale: number;
+  lobeCountBias: number;
+  edgeRoughness: number;
+  driftSpeed: number;
+  agitationStrength: number;
+  directionalBias: number;
+  seed: number;
+}
 
-export const MASS_PRESETS = [
+export const MASS_PRESETS: MassPreset[] = [
   {
-    name: "ferro-core",
-    seed: 1.17,
-    baseScale: 0.8,
-    lobeCountBias: 5.0, // Sharp spikes
-    edgeRoughness: 0.05, // Smooth surface between spikes
-    driftSpeed: 0.8,
-    agitationStrength: 0.45, // Strong pull
-    directionalBias: 0.0,
+    name: "Sludge",
+    fillColor: "#000000",
     backgroundColor: "#585500", // Olive
-    fillColor: BASE_FILL_COLOR
+    baseScale: 1.2,
+    lobeCountBias: 3.0,
+    edgeRoughness: 0.4,
+    driftSpeed: 0.2,
+    agitationStrength: 0.5,
+    directionalBias: 0.0,
+    seed: 12.34
   },
   {
-    name: "heavy-sludge",
-    seed: 4.81,
-    baseScale: 0.85,
-    lobeCountBias: 2.0, // Wide, heavy blobs
-    edgeRoughness: 0.15, // Slightly bumpy
-    driftSpeed: 0.4, // Slow moving
-    agitationStrength: 0.3, // Medium pull
-    directionalBias: 0.0,
+    name: "Ferrofluid",
+    fillColor: "#000000",
     backgroundColor: "#1e1e1e", // Dark gray
-    fillColor: BASE_FILL_COLOR
+    baseScale: 1.0,
+    lobeCountBias: 6.0,
+    edgeRoughness: 0.8,
+    driftSpeed: 0.4,
+    agitationStrength: 0.8,
+    directionalBias: 0.2,
+    seed: 56.78
   },
   {
-    name: "active-symbiote",
-    seed: 7.33,
-    baseScale: 0.75,
-    lobeCountBias: 3.5, // Medium spikes
-    edgeRoughness: 0.1,
-    driftSpeed: 1.2, // Fast moving
-    agitationStrength: 0.5, // Very strong pull
-    directionalBias: 0.0,
+    name: "Void",
+    fillColor: "#000000",
     backgroundColor: "#2a1b3d", // Deep purple
-    fillColor: BASE_FILL_COLOR
+    baseScale: 1.5,
+    lobeCountBias: 2.0,
+    edgeRoughness: 0.2,
+    driftSpeed: 0.1,
+    agitationStrength: 0.3,
+    directionalBias: 0.0,
+    seed: 90.12
   },
   {
-    name: "suspended-oil",
-    seed: 10.42,
-    baseScale: 0.82,
-    lobeCountBias: 2.5, // Smooth blobs
-    edgeRoughness: 0.02, // Very smooth surface
-    driftSpeed: 0.6,
-    agitationStrength: 0.25, // Subtle pull
-    directionalBias: 0.0,
+    name: "Abyss",
+    fillColor: "#000000",
     backgroundColor: "#002b36", // Deep teal
-    fillColor: BASE_FILL_COLOR
+    baseScale: 0.8,
+    lobeCountBias: 8.0,
+    edgeRoughness: 1.0,
+    driftSpeed: 0.6,
+    agitationStrength: 1.0,
+    directionalBias: 0.5,
+    seed: 34.56
   }
 ];

@@ -1,48 +1,46 @@
-import * as THREE from "three";
+import * as THREE from 'three';
+import { MassPreset } from './mass-presets';
 
-const DEFAULT_ENERGY = 0.18;
-const BASE_PRESET = {
-  name: "default-mass",
-  seed: 1,
-  baseScale: 0.82,
-  lobeCountBias: 4.8,
-  edgeRoughness: 0.18,
-  driftSpeed: 0.62,
-  agitationStrength: 0.2,
-  directionalBias: 0.72,
-  backgroundColor: "#585500",
-  fillColor: "#010101"
+const BASE_PRESET: MassPreset = {
+  name: "Base",
+  fillColor: "#000000",
+  backgroundColor: "#ffffff",
+  baseScale: 1.0,
+  lobeCountBias: 4.0,
+  edgeRoughness: 0.5,
+  driftSpeed: 0.3,
+  agitationStrength: 0.5,
+  directionalBias: 0.0,
+  seed: 0.0
 };
 
-class SpringValue {
+const DEFAULT_ENERGY = 0.18;
+
+// Simple spring physics for smooth transitions
+class Spring {
   value: number;
   target: number;
   velocity: number;
-  config: { stiffness: number; damping: number };
+  tension: number;
+  friction: number;
 
-  constructor(value: number, config: { stiffness: number; damping: number }) {
-    this.value = value;
-    this.target = value;
+  constructor(initialValue: number, tension = 0.1, friction = 0.8) {
+    this.value = initialValue;
+    this.target = initialValue;
     this.velocity = 0;
-    this.config = config;
+    this.tension = tension;
+    this.friction = friction;
   }
 
   setTarget(target: number) {
     this.target = target;
   }
 
-  snap(value: number) {
-    this.value = value;
-    this.target = value;
-    this.velocity = 0;
-  }
-
-  update(deltaSeconds: number) {
-    const { stiffness, damping } = this.config;
-    const displacement = this.target - this.value;
-    this.velocity += displacement * stiffness * deltaSeconds;
-    this.velocity *= Math.exp(-damping * deltaSeconds);
-    this.value += this.velocity * deltaSeconds;
+  update() {
+    const d = (this.target - this.value) * this.tension;
+    this.velocity += d;
+    this.velocity *= this.friction;
+    this.value += this.velocity;
     return this.value;
   }
 }
@@ -80,168 +78,131 @@ function createMassMaterial() {
       uniform float uEdgeRoughness;
       uniform float uDriftSpeed;
       uniform float uAgitationStrength;
+      uniform float uDirectionalBias;
 
-      vec4 mod289(vec4 x) {
-        return x - floor(x * (1.0 / 289.0)) * 289.0;
-      }
+      // Simplex 3D Noise
+      vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+      vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 
-      float mod289(float x) {
-        return x - floor(x * (1.0 / 289.0)) * 289.0;
-      }
+      float snoise(vec3 v){ 
+        const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+        const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
 
-      vec3 mod289(vec3 x) {
-        return x - floor(x * (1.0 / 289.0)) * 289.0;
-      }
-
-      vec4 permute(vec4 x) {
-        return mod289(((x * 34.0) + 1.0) * x);
-      }
-
-      float permute(float x) {
-        return mod289(((x * 34.0) + 1.0) * x);
-      }
-
-      vec4 taylorInvSqrt(vec4 r) {
-        return 1.79284291400159 - 0.85373472095314 * r;
-      }
-
-      float snoise(vec3 v) {
-        const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);
-        const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-
-        vec3 i = floor(v + dot(v, C.yyy));
-        vec3 x0 = v - i + dot(i, C.xxx);
+        vec3 i  = floor(v + dot(v, C.yyy) );
+        vec3 x0 = v - i + dot(i, C.xxx) ;
 
         vec3 g = step(x0.yzx, x0.xyz);
         vec3 l = 1.0 - g;
-        vec3 i1 = min(g.xyz, l.zxy);
-        vec3 i2 = max(g.xyz, l.zxy);
+        vec3 i1 = min( g.xyz, l.zxy );
+        vec3 i2 = max( g.xyz, l.zxy );
 
-        vec3 x1 = x0 - i1 + C.xxx;
-        vec3 x2 = x0 - i2 + C.yyy;
-        vec3 x3 = x0 - D.yyy;
+        vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+        vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+        vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
 
-        i = mod289(i);
-        vec4 p = permute(
-          permute(
-            permute(i.z + vec4(0.0, i1.z, i2.z, 1.0)) +
-              i.y +
-              vec4(0.0, i1.y, i2.y, 1.0)
-          ) +
-            i.x +
-            vec4(0.0, i1.x, i2.x, 1.0)
-        );
+        i = mod(i, 289.0 ); 
+        vec4 p = permute( permute( permute( 
+                   i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+                 + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+                 + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
 
-        float n_ = 0.142857142857;
-        vec3 ns = n_ * D.wyz - D.xzx;
+        float n_ = 1.0/7.0;
+        vec3  ns = n_ * D.wyz - D.xzx;
 
-        vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+        vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
+
         vec4 x_ = floor(j * ns.z);
-        vec4 y_ = floor(j - 7.0 * x_);
+        vec4 y_ = floor(j - 7.0 * x_ );
 
-        vec4 x = x_ * ns.x + ns.yyyy;
-        vec4 y = y_ * ns.x + ns.yyyy;
+        vec4 x = x_ *ns.x + ns.yyyy;
+        vec4 y = y_ *ns.x + ns.yyyy;
         vec4 h = 1.0 - abs(x) - abs(y);
 
-        vec4 b0 = vec4(x.xy, y.xy);
-        vec4 b1 = vec4(x.zw, y.zw);
+        vec4 b0 = vec4( x.xy, y.xy );
+        vec4 b1 = vec4( x.zw, y.zw );
 
-        vec4 s0 = floor(b0) * 2.0 + 1.0;
-        vec4 s1 = floor(b1) * 2.0 + 1.0;
+        vec4 s0 = floor(b0)*2.0 + 1.0;
+        vec4 s1 = floor(b1)*2.0 + 1.0;
         vec4 sh = -step(h, vec4(0.0));
 
-        vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
-        vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+        vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+        vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
 
-        vec3 p0 = vec3(a0.xy, h.x);
-        vec3 p1 = vec3(a0.zw, h.y);
-        vec3 p2 = vec3(a1.xy, h.z);
-        vec3 p3 = vec3(a1.zw, h.w);
+        vec3 p0 = vec3(a0.xy,h.x);
+        vec3 p1 = vec3(a0.zw,h.y);
+        vec3 p2 = vec3(a1.xy,h.z);
+        vec3 p3 = vec3(a1.zw,h.w);
 
-        vec4 norm = taylorInvSqrt(
-          vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3))
-        );
+        vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
         p0 *= norm.x;
         p1 *= norm.y;
         p2 *= norm.z;
         p3 *= norm.w;
 
-        vec4 m = max(
-          0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)),
-          0.0
-        );
+        vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
         m = m * m;
-
-        return 42.0 *
-          dot(
-            m * m,
-            vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3))
-          );
-      }
-
-      vec3 getDisplacedPosition(vec3 baseNormal, float t) {
-        // Warp the normal slightly to make the pulls organic and asymmetrical
-        vec3 warpedNormal = normalize(baseNormal + snoise(baseNormal * 2.5 + t * 0.5) * 0.25);
-        
-        // 5 Orbiting "Magnets" that pull the fluid outward
-        vec3 m1 = normalize(vec3(sin(t * 0.8 + uSeed), cos(t * 0.9 + uSeed), sin(t * 0.7)));
-        vec3 m2 = normalize(vec3(cos(t * 1.1), sin(t * 0.6 + uSeed), -cos(t * 0.8)));
-        vec3 m3 = normalize(vec3(-sin(t * 0.7), -cos(t * 1.2), sin(t * 1.1 + uSeed)));
-        vec3 m4 = normalize(vec3(cos(t * 0.9), -sin(t * 0.8), -cos(t * 1.3)));
-        vec3 m5 = normalize(vec3(sin(t * 1.3), cos(t * 0.5), -sin(t * 0.9)));
-        
-        // Calculate influence of each magnet (0 to 1)
-        float i1 = max(0.0, dot(warpedNormal, m1));
-        float i2 = max(0.0, dot(warpedNormal, m2));
-        float i3 = max(0.0, dot(warpedNormal, m3));
-        float i4 = max(0.0, dot(warpedNormal, m4));
-        float i5 = max(0.0, dot(warpedNormal, m5));
-        
-        // Sharpen the influence to create distinct lobes/spikes
-        float sharpness = uLobeCountBias;
-        i1 = pow(i1, sharpness);
-        i2 = pow(i2, sharpness);
-        i3 = pow(i3, sharpness);
-        i4 = pow(i4, sharpness);
-        i5 = pow(i5, sharpness);
-        
-        float pull = i1 + i2 + i3 + i4 + i5;
-        
-        // Add some general fluid noise to the surface
-        float fluidNoise = snoise(baseNormal * 1.5 - t * 0.4) * 0.5 + 0.5;
-        
-        // Base radius of the sphere
-        float r = 0.68;
-        
-        // Apply the magnet pulls and fluid noise
-        r += pull * (uAgitationStrength + uEnergy * 0.2);
-        r += fluidNoise * uEdgeRoughness;
-        
-        // Pointer interaction (pushes the fluid away)
-        float pointerPush = dot(baseNormal.xy, uPointer) * 0.15 * (0.5 + uPresence);
-        r += pointerPush;
-        
-        // Apply base scale
-        return baseNormal * r * uBaseScale;
+        return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
+                                      dot(p2,x2), dot(p3,x3) ) );
       }
 
       void main() {
-        float time = uTime * uDriftSpeed;
-
-        // Get the displaced position for the current vertex
-        vec3 pos = getDisplacedPosition(normal, time);
-
-        // Approximate the new normal by sampling nearby points
-        // This is CRITICAL for making the lighting look like a real 3D fluid
-        float offset = 0.01;
-        vec3 tangent = normalize(cross(normal, vec3(0.0, 1.0, 0.0)));
-        if (length(tangent) < 0.1) tangent = normalize(cross(normal, vec3(1.0, 0.0, 0.0)));
-        vec3 bitangent = normalize(cross(normal, tangent));
+        vec3 pos = position;
         
-        vec3 posT = getDisplacedPosition(normalize(normal + tangent * offset), time);
-        vec3 posB = getDisplacedPosition(normalize(normal + bitangent * offset), time);
+        // Base drift
+        float t = uTime * uDriftSpeed + uSeed;
         
-        vec3 newNormal = normalize(cross(posT - pos, posB - pos));
+        // Pointer interaction
+        vec3 pointerPos = vec3(uPointer.x * 5.0, uPointer.y * 5.0, 0.0);
+        float distToPointer = distance(pos, pointerPos);
+        
+        // Magnetic pull towards pointer
+        float pullStrength = smoothstep(4.0, 0.0, distToPointer) * uPresence * 0.5;
+        vec3 pullDir = normalize(pointerPos - pos);
+        
+        // Apply pull
+        pos += pullDir * pullStrength;
+
+        // Complex noise for ferrofluid-like spikes and lobes
+        float noiseFreq1 = uLobeCountBias;
+        float noiseFreq2 = uLobeCountBias * 2.5;
+        
+        // Agitation increases with energy and presence
+        float currentAgitation = uAgitationStrength * (1.0 + uEnergy * 2.0 + uPresence);
+        
+        vec3 noisePos1 = pos * noiseFreq1 + vec3(t, t * 0.8, t * 1.2);
+        vec3 noisePos2 = pos * noiseFreq2 - vec3(t * 1.5, t, t * 0.5);
+        
+        float n1 = snoise(noisePos1);
+        float n2 = snoise(noisePos2);
+        
+        // Combine noises for spiky/loby look
+        float displacement = (n1 * 0.6 + n2 * 0.4 * uEdgeRoughness) * currentAgitation;
+        
+        // Directional bias (e.g., gravity or flow)
+        displacement += pos.y * uDirectionalBias * 0.2;
+
+        // Apply displacement along normal
+        pos += normal * displacement * uBaseScale;
+
+        // Recalculate normal (approximate)
+        float eps = 0.01;
+        vec3 posU = position + vec3(eps, 0.0, 0.0);
+        vec3 posV = position + vec3(0.0, eps, 0.0);
+        
+        // Apply same displacement to neighbors to find new normal
+        float n1U = snoise(posU * noiseFreq1 + vec3(t, t * 0.8, t * 1.2));
+        float n2U = snoise(posU * noiseFreq2 - vec3(t * 1.5, t, t * 0.5));
+        float dU = (n1U * 0.6 + n2U * 0.4 * uEdgeRoughness) * currentAgitation + posU.y * uDirectionalBias * 0.2;
+        posU += vec3(1.0, 0.0, 0.0) * dU * uBaseScale; // simplified normal
+
+        float n1V = snoise(posV * noiseFreq1 + vec3(t, t * 0.8, t * 1.2));
+        float n2V = snoise(posV * noiseFreq2 - vec3(t * 1.5, t, t * 0.5));
+        float dV = (n1V * 0.6 + n2V * 0.4 * uEdgeRoughness) * currentAgitation + posV.y * uDirectionalBias * 0.2;
+        posV += vec3(0.0, 1.0, 0.0) * dV * uBaseScale; // simplified normal
+
+        vec3 newNormal = normalize(cross(posU - pos, posV - pos));
+        // Blend with original normal to soften
+        newNormal = normalize(mix(normal, newNormal, 0.8));
 
         vec4 worldPosition = modelMatrix * vec4(pos, 1.0);
         vec4 mvPosition = viewMatrix * worldPosition;
@@ -308,7 +269,7 @@ function createMassMaterial() {
             
             // Fresnel rim glow (Quad Damage style)
             float fresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), 3.0);
-            vec3 rimColor = quadBlue * fresnel * 1.5;
+            vec3 quadRimColor = quadBlue * fresnel * 1.5;
             
             // Oil slick iridescence based on viewing angle and time
             float oilFresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), 1.3);
@@ -321,115 +282,95 @@ function createMassMaterial() {
             vec3 lightContrib = quadBlue * diff * 0.4 * pointFlicker;
             
             // Combine: Oil slick base + Quad Damage rim + Flickering light
-            finalColor += (oil * oilFresnel) + rimColor + lightContrib;
+            finalColor += (oil * oilFresnel) + quadRimColor + lightContrib;
         }
 
         gl_FragColor = vec4(finalColor, 1.0);
       }
     `,
-    transparent: false
+    transparent: true,
   });
 }
 
 export class MorphingMassController {
-  container: HTMLElement;
-  preset: any;
-  pointer: THREE.Vector2;
-  renderer: THREE.WebGLRenderer;
-  scene: THREE.Scene;
-  camera: THREE.PerspectiveCamera;
-  massGroup: THREE.Group;
-  material: THREE.ShaderMaterial;
-  geometry: THREE.IcosahedronGeometry;
-  mesh: THREE.Mesh;
-  activeSpring: SpringValue;
-  energySpring: SpringValue;
-  pointerXSpring: SpringValue;
-  pointerYSpring: SpringValue;
-  clock: THREE.Clock;
-  frameId: number;
-  isDestroyed: boolean;
-  handleResize: () => void;
+  private container: HTMLElement;
+  private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
+  private renderer: THREE.WebGLRenderer;
+  private mesh: THREE.Mesh;
+  private material: THREE.ShaderMaterial;
+  
+  private energySpring = new Spring(DEFAULT_ENERGY, 0.1, 0.8);
+  private presenceSpring = new Spring(0, 0.05, 0.9);
+  
+  private pointer = new THREE.Vector2(0, 0);
+  private targetPointer = new THREE.Vector2(0, 0);
+  
+  private clock = new THREE.Clock();
+  private animationFrameId: number | null = null;
+  private resizeObserver: ResizeObserver;
 
-  constructor(container: HTMLElement, options: any = {}) {
+  // Preset springs
+  private springs = {
+    baseScale: new Spring(BASE_PRESET.baseScale, 0.05, 0.8),
+    lobeCountBias: new Spring(BASE_PRESET.lobeCountBias, 0.05, 0.8),
+    edgeRoughness: new Spring(BASE_PRESET.edgeRoughness, 0.05, 0.8),
+    driftSpeed: new Spring(BASE_PRESET.driftSpeed, 0.05, 0.8),
+    agitationStrength: new Spring(BASE_PRESET.agitationStrength, 0.05, 0.8),
+    directionalBias: new Spring(BASE_PRESET.directionalBias, 0.05, 0.8),
+  };
+
+  constructor(container: HTMLElement, options: { preset?: MassPreset } = {}) {
     this.container = container;
-    this.preset = { ...BASE_PRESET, ...(options.preset ?? {}) };
-    this.pointer = new THREE.Vector2(0, 0);
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance"
-    });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(this.preset.backgroundColor, 0);
     
-    this.renderer.domElement.style.width = '100%';
-    this.renderer.domElement.style.height = '100%';
-    this.renderer.domElement.style.display = 'block';
-    this.renderer.domElement.style.objectFit = 'contain';
-    
-    this.container.appendChild(this.renderer.domElement);
-
+    // Setup Scene
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(18, 1, 0.1, 100);
-    this.camera.position.set(0, 0.04, 10.8);
-
-    this.massGroup = new THREE.Group();
-    this.scene.add(this.massGroup);
-
+    
+    // Setup Camera
+    const rect = container.getBoundingClientRect();
+    this.camera = new THREE.PerspectiveCamera(45, rect.width / rect.height, 0.1, 100);
+    this.camera.position.z = 6;
+    
+    // Setup Renderer
+    this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    this.renderer.setSize(rect.width, rect.height);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(this.renderer.domElement);
+    
+    // Setup Mesh
+    const geometry = new THREE.IcosahedronGeometry(1.5, 64);
     this.material = createMassMaterial();
-    this.geometry = new THREE.IcosahedronGeometry(0.68, 64);
-    this.mesh = new THREE.Mesh(this.geometry, this.material);
-    this.massGroup.add(this.mesh);
-
-    this.activeSpring = new SpringValue(0, { stiffness: 24, damping: 6.6 });
-    this.energySpring = new SpringValue(DEFAULT_ENERGY, { stiffness: 34, damping: 6.4 });
-    this.pointerXSpring = new SpringValue(0, { stiffness: 20, damping: 7.8 });
-    this.pointerYSpring = new SpringValue(0, { stiffness: 20, damping: 7.8 });
-
-    this.clock = new THREE.Clock();
-    this.frameId = 0;
-    this.isDestroyed = false;
-
-    this.setPreset(this.preset);
-    this.resize();
-
-    this.handleResize = () => this.resize();
-    window.addEventListener("resize", this.handleResize);
-
-    this.animate = this.animate.bind(this);
-    this.frameId = window.requestAnimationFrame(this.animate);
-  }
-
-  setActive(isActive: boolean) {
-    this.activeSpring.setTarget(isActive ? 1 : 0);
-  }
-
-  setPointer(clientX: number, clientY: number) {
-    const rect = this.container.getBoundingClientRect();
-    const normalizedX = ((clientX - rect.left) / rect.width) * 2 - 1;
-    const normalizedY = -(((clientY - rect.top) / rect.height) * 2 - 1);
-    this.pointerXSpring.setTarget(THREE.MathUtils.clamp(normalizedX, -1, 1));
-    this.pointerYSpring.setTarget(THREE.MathUtils.clamp(normalizedY, -1, 1));
-  }
-
-  setPreset(preset: any) {
-    this.preset = { ...BASE_PRESET, ...preset };
-    this.material.uniforms.uSeed.value = this.preset.seed;
-    this.material.uniforms.uBaseScale.value = this.preset.baseScale;
-    this.material.uniforms.uLobeCountBias.value = this.preset.lobeCountBias;
-    this.material.uniforms.uEdgeRoughness.value = this.preset.edgeRoughness;
-    this.material.uniforms.uDriftSpeed.value = this.preset.driftSpeed;
-    this.material.uniforms.uAgitationStrength.value = this.preset.agitationStrength;
-    this.material.uniforms.uDirectionalBias.value = this.preset.directionalBias;
-    this.material.uniforms.uBlobColor.value.set(this.preset.fillColor);
+    this.mesh = new THREE.Mesh(geometry, this.material);
+    this.scene.add(this.mesh);
     
-    this.renderer.setClearColor(this.preset.backgroundColor, 0);
+    // Handle Resize
+    this.resizeObserver = new ResizeObserver(() => this.handleResize());
+    this.resizeObserver.observe(container);
     
-    // Update container background color if we want it to match
-    if (this.container.parentElement) {
-      this.container.parentElement.style.backgroundColor = this.preset.backgroundColor;
+    if (options.preset) {
+      this.setPreset(options.preset, true);
     }
+
+    // Start Loop
+    this.animate();
+  }
+
+  setPreset(preset: MassPreset, immediate = false) {
+    this.springs.baseScale.setTarget(preset.baseScale);
+    this.springs.lobeCountBias.setTarget(preset.lobeCountBias);
+    this.springs.edgeRoughness.setTarget(preset.edgeRoughness);
+    this.springs.driftSpeed.setTarget(preset.driftSpeed);
+    this.springs.agitationStrength.setTarget(preset.agitationStrength);
+    this.springs.directionalBias.setTarget(preset.directionalBias);
+    
+    if (immediate) {
+      Object.values(this.springs).forEach(spring => {
+        spring.value = spring.target;
+      });
+    }
+    
+    this.material.uniforms.uSeed.value = preset.seed;
+    this.material.uniforms.uBlobColor.value.set(preset.fillColor);
   }
 
   setVantablack(isVantablack: boolean) {
@@ -444,57 +385,70 @@ export class MorphingMassController {
     this.energySpring.setTarget(THREE.MathUtils.clamp(level, 0.08, 1));
   }
 
-  resize(width?: number, height?: number) {
-    const nextWidth = width ?? this.container.clientWidth ?? window.innerWidth;
-    const nextHeight = height ?? this.container.clientHeight ?? window.innerHeight;
-
-    this.camera.aspect = nextWidth / nextHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(nextWidth, nextHeight, false);
-
-    const aspectBias = THREE.MathUtils.clamp((nextWidth / nextHeight - 0.8) * 0.12, -0.08, 0.12);
-    this.massGroup.scale.set(1.05 + aspectBias, 1.0 - aspectBias * 0.32, 1);
+  setActive(active: boolean) {
+    this.presenceSpring.setTarget(active ? 1 : 0);
   }
+
+  setPointer(clientX: number, clientY: number) {
+    const rect = this.container.getBoundingClientRect();
+    // Normalize to -1 to 1
+    this.targetPointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.targetPointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  }
+
+  private handleResize() {
+    const rect = this.container.getBoundingClientRect();
+    this.camera.aspect = rect.width / rect.height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(rect.width, rect.height);
+  }
+
+  private animate = () => {
+    this.animationFrameId = requestAnimationFrame(this.animate);
+    
+    const time = this.clock.getElapsedTime();
+    
+    // Update springs
+    this.energySpring.update();
+    this.presenceSpring.update();
+    
+    Object.values(this.springs).forEach(spring => spring.update());
+    
+    // Smooth pointer follow
+    this.pointer.lerp(this.targetPointer, 0.1);
+    
+    // Update uniforms
+    this.material.uniforms.uTime.value = time;
+    this.material.uniforms.uEnergy.value = this.energySpring.value;
+    this.material.uniforms.uPresence.value = this.presenceSpring.value;
+    this.material.uniforms.uPointer.value.copy(this.pointer);
+    
+    this.material.uniforms.uBaseScale.value = this.springs.baseScale.value;
+    this.material.uniforms.uLobeCountBias.value = this.springs.lobeCountBias.value;
+    this.material.uniforms.uEdgeRoughness.value = this.springs.edgeRoughness.value;
+    this.material.uniforms.uDriftSpeed.value = this.springs.driftSpeed.value;
+    this.material.uniforms.uAgitationStrength.value = this.springs.agitationStrength.value;
+    this.material.uniforms.uDirectionalBias.value = this.springs.directionalBias.value;
+    
+    // Gentle rotation
+    this.mesh.rotation.y = time * 0.1;
+    this.mesh.rotation.z = time * 0.05;
+    
+    this.renderer.render(this.scene, this.camera);
+  };
 
   destroy() {
-    if (this.isDestroyed) {
-      return;
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
     }
-
-    this.isDestroyed = true;
-    window.cancelAnimationFrame(this.frameId);
-    window.removeEventListener("resize", this.handleResize);
-    this.geometry.dispose();
+    this.resizeObserver.disconnect();
+    this.geometry?.dispose();
     this.material.dispose();
     this.renderer.dispose();
-    this.container.replaceChildren();
+    this.container.removeChild(this.renderer.domElement);
   }
-
-  animate() {
-    if (this.isDestroyed) {
-      return;
-    }
-
-    const deltaSeconds = Math.min(this.clock.getDelta(), 0.033);
-    const elapsed = this.clock.elapsedTime;
-    const active = this.activeSpring.update(deltaSeconds);
-    const energy = this.energySpring.update(deltaSeconds);
-    const pointerX = this.pointerXSpring.update(deltaSeconds);
-    const pointerY = this.pointerYSpring.update(deltaSeconds);
-
-    this.pointer.set(pointerX, pointerY);
-
-    this.material.uniforms.uTime.value = elapsed;
-    this.material.uniforms.uEnergy.value = energy;
-    this.material.uniforms.uPresence.value = active;
-    this.material.uniforms.uPointer.value.copy(this.pointer);
-
-    this.massGroup.rotation.y = pointerX * 0.18 + active * 0.05;
-    this.massGroup.rotation.x = pointerY * 0.08 - 0.08 - active * 0.02;
-    this.massGroup.position.y = pointerY * 0.08 + active * 0.06;
-    this.massGroup.position.x = pointerX * 0.18;
-
-    this.renderer.render(this.scene, this.camera);
-    this.frameId = window.requestAnimationFrame(this.animate);
+  
+  private get geometry() {
+    return this.mesh.geometry;
   }
 }

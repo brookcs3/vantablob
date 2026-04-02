@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MASS_PRESETS } from './mass-presets';
+import { MASS_PRESETS as OLD_MASS_PRESETS } from './old-mass-presets';
 import { MorphingMassController } from './morphing-mass-controller';
+import { MorphingMassController as OldMorphingMassController } from './old-morphing-mass-controller';
+import { GimbalMassController } from './gimbal-mass-controller';
+import { HistoricMassController } from './historic-mass-controller';
+import { MusicMassController } from './music-mass-controller';
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 function MorphingBlob({ 
   controllerRef, 
@@ -65,16 +72,301 @@ function MorphingBlob({
   return (
     <div 
       ref={containerRef} 
-      className="w-full h-full min-h-[600px] flex items-center justify-center"
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
+    />
+  );
+}
+
+function OldMorphingBlob({ 
+  controllerRef, 
+  isVantablack,
+  isJarvis
+}: { 
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new OldMorphingMassController(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
+    />
+  );
+}
+
+function GimbalMorphingBlob({ 
+  controllerRef, 
+  isVantablack,
+  isJarvis,
+  gimbalSpeed
+}: { 
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+  gimbalSpeed: number;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new GimbalMassController(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    if (controller.setGimbalSpeed) controller.setGimbalSpeed(gimbalSpeed);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (controllerRef.current && controllerRef.current.setGimbalSpeed) {
+      controllerRef.current.setGimbalSpeed(gimbalSpeed);
+    }
+  }, [gimbalSpeed]);
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
+    />
+  );
+}
+
+function HistoricMorphingBlob({ 
+  controllerRef, 
+  isVantablack,
+  isJarvis
+}: { 
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new HistoricMassController(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
+    />
+  );
+}
+
+function MusicMorphingBlob({ 
+  controllerRef, 
+  isVantablack,
+  isJarvis
+}: { 
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new MusicMassController(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
     />
   );
 }
 
 export default function App() {
-  const controllerRef = useRef<MorphingMassController | null>(null);
+  const controllerRef = useRef<any>(null);
   const [presetIndex, setPresetIndex] = useState(0);
   const [isVantablack, setIsVantablack] = useState(false);
   const [isJarvis, setIsJarvis] = useState(false);
+  const [gimbalSpeed, setGimbalSpeed] = useState(1.0);
+  
+  const [cardIndex, setCardIndex] = useState(0);
+  const TOTAL_CARDS = 5;
 
   useEffect(() => {
     if (controllerRef.current) {
@@ -86,13 +378,31 @@ export default function App() {
     if (controllerRef.current) {
       controllerRef.current.setJarvis(isJarvis);
     }
+    if (isJarvis) {
+      const audio = new Audio('/quaddamage.wav');
+      audio.volume = 0.5;
+      audio.play().catch(e => console.error("Audio play failed:", e));
+    }
   }, [isJarvis]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') setCardIndex((prev) => (prev + 1) % TOTAL_CARDS);
+      if (e.key === 'ArrowLeft') setCardIndex((prev) => (prev - 1 + TOTAL_CARDS) % TOTAL_CARDS);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const nextCard = () => setCardIndex((prev) => (prev + 1) % TOTAL_CARDS);
+  const prevCard = () => setCardIndex((prev) => (prev - 1 + TOTAL_CARDS) % TOTAL_CARDS);
 
   const handleCycleVariant = () => {
     if (!controllerRef.current) return;
-    const nextIndex = (presetIndex + 1) % MASS_PRESETS.length;
+    const currentPresets = cardIndex === 0 ? MASS_PRESETS : OLD_MASS_PRESETS;
+    const nextIndex = (presetIndex + 1) % currentPresets.length;
     setPresetIndex(nextIndex);
-    controllerRef.current.setPreset(MASS_PRESETS[nextIndex]);
+    controllerRef.current.setPreset(currentPresets[nextIndex]);
   };
 
   const handlePulseMass = () => {
@@ -114,21 +424,62 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#111111] text-white font-sans">
-      <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
-        {/* Left Column - Text Content */}
-        <div className="flex flex-col justify-center p-12 lg:p-24 z-10 max-w-3xl mx-auto">
-          <h1 className="text-5xl lg:text-6xl font-medium tracking-tight mb-8">
-            What's Material?
-          </h1>
-          <p className="text-[17px] text-gray-300 mb-6 leading-relaxed">
-            Material Design is a design system built and supported by Google designers and developers. <strong>Material.io</strong> includes in-depth UX guidance and UI component implementations for Android, Flutter, and the Web.
-          </p>
-          <p className="text-[17px] text-gray-300 mb-12 leading-relaxed">
-            The latest version, Material 3, enables personal, adaptive, and expressive experiences – from dynamic color and enhanced accessibility, to foundations for large screen layouts and design tokens. M3 Expressive takes this a step further by adding more flexible components, vibrant styles, and fully integrated motion.
-          </p>
-          
-          <div className="flex flex-wrap gap-4 mb-12">
+    <div className="min-h-screen bg-[#111111] text-white font-sans flex flex-col items-center justify-center p-8 overflow-hidden">
+      <div className="w-full max-w-4xl flex flex-col gap-8 relative">
+        
+        {/* Carousel Container */}
+        <div className="relative w-full flex items-center justify-center">
+          <button 
+            onClick={prevCard} 
+            className="absolute left-[-1rem] md:left-[-4rem] z-10 p-2 hover:bg-white/10 rounded-full transition-colors"
+          >
+            <ChevronLeft size={32} />
+          </button>
+
+          {/* The Blob Card */}
+          <div 
+            className="relative w-full aspect-square md:aspect-video flex items-center justify-center overflow-hidden rounded-[40px] transition-colors duration-500 shadow-2xl border border-white/10"
+            style={{ backgroundColor: cardIndex === 0 ? MASS_PRESETS[presetIndex % MASS_PRESETS.length].backgroundColor : OLD_MASS_PRESETS[presetIndex % OLD_MASS_PRESETS.length].backgroundColor }}
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={cardIndex}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                transition={{ duration: 0.4 }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                {cardIndex === 0 ? (
+                  <MorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 2 ? (
+                  <GimbalMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} gimbalSpeed={gimbalSpeed} />
+                ) : cardIndex === 3 ? (
+                  <HistoricMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 4 ? (
+                  <MusicMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : (
+                  <OldMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          <button 
+            onClick={nextCard} 
+            className="absolute right-[-1rem] md:right-[-4rem] z-10 p-2 hover:bg-white/10 rounded-full transition-colors"
+          >
+            <ChevronRight size={32} />
+          </button>
+        </div>
+
+        <div className="text-center text-gray-500 text-sm font-medium tracking-widest uppercase">
+          Variant {cardIndex + 1} of {TOTAL_CARDS} (Use Arrow Keys)
+        </div>
+
+        {/* Controls */}
+        <div className="flex flex-col items-center gap-6">
+          <div className="flex flex-wrap justify-center gap-4">
             <button 
               onClick={handleCycleVariant}
               className="px-6 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition-colors"
@@ -161,60 +512,61 @@ export default function App() {
             >
               {isJarvis ? 'Quad/Oil: ON' : 'Quad/Oil: OFF'}
             </button>
+            
+            {cardIndex === 4 && (
+              <button 
+                onClick={() => {
+                  if (controllerRef.current && controllerRef.current.enableAudio) {
+                    controllerRef.current.enableAudio();
+                  }
+                }}
+                className="px-6 py-3 bg-fuchsia-600 text-white border border-fuchsia-500 rounded-full font-medium hover:bg-fuchsia-500 transition-colors shadow-[0_0_15px_rgba(192,38,211,0.5)] flex items-center gap-2"
+              >
+                <Play size={18} />
+                Play ms.mp3
+              </button>
+            )}
           </div>
 
-          <dl className="grid grid-cols-3 gap-8 mb-12 border-t border-white/10 pt-8">
+          <div className={`w-full max-w-xs mx-auto mt-2 transition-opacity duration-300 ${cardIndex === 2 ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+            <div className="flex justify-between text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">
+              <span>Gimbal Speed</span>
+              <span>{gimbalSpeed.toFixed(1)}x</span>
+            </div>
+            <input 
+              type="range" 
+              min="0.5" 
+              max="4.0" 
+              step="0.1" 
+              value={gimbalSpeed} 
+              onChange={(e) => setGimbalSpeed(parseFloat(e.target.value))}
+              disabled={cardIndex !== 2}
+              className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
+            />
+          </div>
+
+          <dl className="flex gap-8 text-center">
             <div>
               <dt className="text-sm text-gray-500 mb-1">Preset</dt>
-              <dd className="font-medium text-gray-300">{MASS_PRESETS[presetIndex].name}</dd>
+              <dd className="font-medium text-gray-300">
+                {cardIndex === 0 
+                  ? MASS_PRESETS[presetIndex % MASS_PRESETS.length].name 
+                  : OLD_MASS_PRESETS[presetIndex % OLD_MASS_PRESETS.length].name}
+              </dd>
             </div>
             <div>
               <dt className="text-sm text-gray-500 mb-1">Family</dt>
-              <dd className="font-medium text-gray-300 capitalize">Ferrofluid / Sludge</dd>
+              <dd className="font-medium text-gray-300 capitalize">
+                {cardIndex === 0 ? 'Ferrofluid / Sludge' : cardIndex === 2 ? 'Aerotrim Gimbal' : cardIndex === 3 ? 'Historic Blob' : cardIndex === 4 ? 'Sonic Mass' : 'Magnetic Orbits'}
+              </dd>
             </div>
             <div>
               <dt className="text-sm text-gray-500 mb-1">Motion</dt>
-              <dd className="font-medium text-gray-300">magnetic pull + fluid noise</dd>
+              <dd className="font-medium text-gray-300">
+                {cardIndex === 0 ? 'magnetic pull + fluid noise' : cardIndex === 2 ? '3-axis gimbal + slooge' : cardIndex === 3 ? 'saw blade spin' : cardIndex === 4 ? 'audio reactive displacement' : 'orbiting magnets + displacement'}
+              </dd>
             </div>
           </dl>
-
-          <div className="space-y-4 mb-8">
-            <div className="bg-[#1e1e1e] p-6 rounded-3xl flex items-center justify-between cursor-pointer hover:bg-[#2a2a2a] transition-colors border border-white/5">
-              <div>
-                <span className="text-xl font-medium block mb-1">UX foundations</span>
-                <span className="text-sm text-gray-400">Foundations like color, type, and shape are customizable systems in Material</span>
-              </div>
-              <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center shrink-0 ml-4">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
-              </div>
-            </div>
-            <div className="bg-[#1e1e1e] p-6 rounded-3xl flex items-center justify-between cursor-pointer hover:bg-[#2a2a2a] transition-colors border border-white/5">
-              <div>
-                <span className="text-xl font-medium block mb-1">Open-source code</span>
-                <span className="text-sm text-gray-400">Multi-platform code to build beautiful products, faster</span>
-              </div>
-              <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center shrink-0 ml-4">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-              </div>
-            </div>
-            <div className="bg-[#1e1e1e] p-6 rounded-3xl flex items-center justify-between cursor-pointer hover:bg-[#2a2a2a] transition-colors border border-white/5">
-              <div>
-                <span className="text-xl font-medium block mb-1">Tutorials, case studies & news</span>
-                <span className="text-sm text-gray-400">Follow Material's blog for updates, deep dives, and more</span>
-              </div>
-              <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center shrink-0 ml-4">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - The Blob */}
-        <div 
-          className="relative flex items-center justify-center overflow-hidden rounded-l-[40px] my-4 mr-4 min-w-0 min-h-0 transition-colors duration-500"
-          style={{ backgroundColor: MASS_PRESETS[presetIndex].backgroundColor }}
-        >
-          <MorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} />
         </div>
       </div>
     </div>
