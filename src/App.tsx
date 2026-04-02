@@ -384,7 +384,7 @@ export default function App() {
       controllerRef.current.setJarvis(isJarvis);
     }
     if (isJarvis) {
-      const audio = new Audio('/quaddamage.wav');
+      const audio = new Audio('./quaddamage.wav');
       audio.volume = 0.5;
       audio.play().catch(e => console.error("Audio play failed:", e));
     }
