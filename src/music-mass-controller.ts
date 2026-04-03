@@ -81,7 +81,8 @@ class AudioAnalyzer {
     this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
 
     try {
-      this.audioElement = new Audio('./ms.mp3');
+      this.audioElement = new Audio('/ms.mp3');
+      this.audioElement.crossOrigin = "anonymous";
       this.audioElement.loop = true;
       
       this.source = this.context.createMediaElementSource(this.audioElement);
