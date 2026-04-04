@@ -6,6 +6,7 @@ import { MorphingMassController as OldMorphingMassController } from './old-morph
 import { GimbalMassController } from './gimbal-mass-controller';
 import { HistoricMassController } from './historic-mass-controller';
 import { MusicMassController } from './music-mass-controller';
+import { AdvancedAudioMassController } from './advanced-audio-mass-controller';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -363,6 +364,167 @@ function MusicMorphingBlob({
   );
 }
 
+function AdvancedAudioMorphingBlob({ 
+  controllerRef, 
+  isVantablack,
+  isJarvis
+}: { 
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [debugData, setDebugData] = useState({ kick: 0, snare: 0, onset: 0 });
+  const [toggles, setToggles] = useState({ kick: true, snare: true, onset: true });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new AdvancedAudioMassController(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+          controller.resetPointer();
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    let frame: number;
+    const updateDebug = () => {
+      if (controllerRef.current) {
+        setDebugData({
+          kick: controllerRef.current.kick || 0,
+          snare: controllerRef.current.snare || 0,
+          onset: controllerRef.current.onset || 0,
+        });
+      }
+      frame = requestAnimationFrame(updateDebug);
+    };
+    updateDebug();
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      cancelAnimationFrame(frame);
+      controller.destroy();
+    };
+  }, []);
+
+  const toggleFeature = (feature: 'kick' | 'snare' | 'onset') => {
+    setToggles(prev => {
+      const next = { ...prev, [feature]: !prev[feature] };
+      if (controllerRef.current) {
+        if (feature === 'kick') controllerRef.current.enableKick = next.kick;
+        if (feature === 'snare') controllerRef.current.enableSnare = next.snare;
+        if (feature === 'onset') controllerRef.current.enableOnset = next.onset;
+      }
+      return next;
+    });
+  };
+
+  return (
+    <div className="relative w-full h-full">
+      <div 
+        ref={containerRef} 
+        className="w-full h-full min-h-[400px] flex items-center justify-center"
+      />
+      
+      {/* Debug UI Overlay */}
+      <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md p-4 rounded-xl border border-white/10 flex flex-col gap-3 z-10 w-48">
+        <div className="text-xs font-bold text-white/50 uppercase tracking-wider mb-1">DSP Debug</div>
+        
+        {/* Kick */}
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between items-center text-xs">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={toggles.kick} 
+                onChange={() => toggleFeature('kick')}
+                className="accent-white"
+              />
+              <span className={toggles.kick ? "text-white" : "text-white/50"}>Kick (60-120Hz)</span>
+            </label>
+            <span className="text-white/50 font-mono">{(debugData.kick * 100).toFixed(0)}</span>
+          </div>
+          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-white transition-all duration-75" style={{ width: `${debugData.kick * 100}%` }} />
+          </div>
+        </div>
+
+        {/* Snare */}
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between items-center text-xs">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={toggles.snare} 
+                onChange={() => toggleFeature('snare')}
+                className="accent-white"
+              />
+              <span className={toggles.snare ? "text-white" : "text-white/50"}>Snare (1-3kHz)</span>
+            </label>
+            <span className="text-white/50 font-mono">{(debugData.snare * 100).toFixed(0)}</span>
+          </div>
+          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-white transition-all duration-75" style={{ width: `${debugData.snare * 100}%` }} />
+          </div>
+        </div>
+
+        {/* Onset */}
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between items-center text-xs">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={toggles.onset} 
+                onChange={() => toggleFeature('onset')}
+                className="accent-white"
+              />
+              <span className={toggles.onset ? "text-white" : "text-white/50"}>Global Onset</span>
+            </label>
+            <span className="text-white/50 font-mono">{(debugData.onset * 100).toFixed(0)}</span>
+          </div>
+          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-white transition-all duration-75" style={{ width: `${debugData.onset * 100}%` }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const controllerRef = useRef<any>(null);
   const [presetIndex, setPresetIndex] = useState(0);
@@ -371,7 +533,7 @@ export default function App() {
   const [gimbalSpeed, setGimbalSpeed] = useState(1.0);
   
   const [cardIndex, setCardIndex] = useState(0);
-  const TOTAL_CARDS = 5;
+  const TOTAL_CARDS = 6;
 
   useEffect(() => {
     if (controllerRef.current) {
@@ -463,12 +625,29 @@ export default function App() {
                   <HistoricMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : cardIndex === 4 ? (
                   <MusicMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 5 ? (
+                  <AdvancedAudioMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : (
                   <OldMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 )}
               </motion.div>
             </AnimatePresence>
           </div>
+
+          {cardIndex === 5 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+              <button 
+                onClick={() => {
+                  if (controllerRef.current && controllerRef.current.enableAudio) {
+                    controllerRef.current.enableAudio();
+                  }
+                }}
+                className="pointer-events-auto w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/20 transition-all border border-white/20 hover:scale-105"
+              >
+                <Play size={32} fill="currentColor" className="ml-2" />
+              </button>
+            </div>
+          )}
 
           <button 
             onClick={nextCard} 

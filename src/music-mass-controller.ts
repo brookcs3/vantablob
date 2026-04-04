@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { detectBPM } from "pleco-xa";
 
 const DEFAULT_ENERGY = 0.18;
 const BASE_PRESET = {
@@ -76,6 +77,12 @@ class AudioAnalyzer {
   hnr: number = 0;
   vibration: number = 0;
 
+  // Pleco-XA
+  plecoBeats: number[] = [];
+  plecoOnsets: number[] = [];
+  lastBeatTime: number = -1;
+  lastOnsetTime: number = -1;
+
   private history: Float32Array[] = [];
   private prevSpectrum: Float32Array | null = null;
   private prevPitchBin: number = 0;
@@ -97,6 +104,18 @@ class AudioAnalyzer {
       this.source.connect(this.analyser);
       this.analyser.connect(this.context.destination); // Route to speakers
       
+      // Pleco-XA analysis
+      fetch('/ms.mp3')
+        .then(res => res.arrayBuffer())
+        .then(buffer => this.context!.decodeAudioData(buffer))
+        .then(audioBuffer => detectBPM(audioBuffer))
+        .then(result => {
+          this.plecoBeats = result.beats;
+          this.plecoOnsets = result.onsets;
+          console.log("Pleco-XA analysis complete:", result);
+        })
+        .catch(err => console.error("Pleco-XA failed", err));
+
       await this.audioElement.play();
     } catch (err) {
       console.error("Audio playback failed", err);
@@ -155,13 +174,47 @@ class AudioAnalyzer {
 
     // Envelope followers for dynamic hits (detects spikes above the running average)
     this.bassAvg = this.bassAvg * 0.95 + this.bass * 0.05;
-    this.bassHit = Math.max(0, this.bass - this.bassAvg * 1.1); // Spikes above 110% of average
-    
     this.trebleAvg = this.trebleAvg * 0.95 + this.treble * 0.05;
-    this.trebleHit = Math.max(0, this.treble - this.trebleAvg * 1.2);
-
     this.snareAvg = this.snareAvg * 0.9 + snare * 0.1; // Faster envelope for snare
-    this.snareHit = Math.max(0, snare - this.snareAvg * 1.25); // Spikes above 125% of average
+
+    // Decay hits
+    this.bassHit *= 0.85;
+    this.snareHit *= 0.85;
+    this.trebleHit *= 0.85;
+
+    // Use Pleco-XA for beat tracking if available
+    const currentTime = this.audioElement.currentTime;
+    if (this.plecoBeats.length > 0) {
+      for (const beatTime of this.plecoBeats) {
+        if (currentTime >= beatTime && currentTime < beatTime + 0.1) {
+          if (this.lastBeatTime !== beatTime) {
+            this.bassHit = 1.0;
+            this.lastBeatTime = beatTime;
+          }
+          break;
+        }
+      }
+    } else {
+      // Fallback
+      this.bassHit = Math.max(this.bassHit, Math.max(0, this.bass - this.bassAvg * 1.1));
+    }
+
+    if (this.plecoOnsets.length > 0) {
+      for (const onsetTime of this.plecoOnsets) {
+        if (currentTime >= onsetTime && currentTime < onsetTime + 0.1) {
+          if (this.lastOnsetTime !== onsetTime) {
+            this.snareHit = 1.0;
+            this.lastOnsetTime = onsetTime;
+          }
+          break;
+        }
+      }
+    } else {
+      // Fallback
+      this.snareHit = Math.max(this.snareHit, Math.max(0, snare - this.snareAvg * 1.25));
+    }
+
+    this.trebleHit = Math.max(this.trebleHit, Math.max(0, this.treble - this.trebleAvg * 1.2));
 
     const squelchMean = (squelchSum / squelchCount) || 1;
     this.squelch = Math.min((squelchPeak / squelchMean) / 10.0, 1.0);
