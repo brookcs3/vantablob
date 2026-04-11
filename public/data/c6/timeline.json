@@ -1,0 +1,40 @@
+{
+  "kick": [
+    { "time": 0.0, "intensity": 0.8 },
+    { "time": 0.5 },
+    { "time": 1.0, "intensity": 0.9 },
+    { "time": 1.5 },
+    { "time": 2.0, "intensity": 0.8 },
+    { "time": 2.5 },
+    { "time": 3.0, "intensity": 0.9 },
+    { "time": 3.5 },
+    { "time": 4.0, "intensity": 0.8 },
+    { "time": 4.5 },
+    { "time": 5.0, "intensity": 0.9 },
+    { "time": 5.5 },
+    { "time": 6.0, "intensity": 0.8 },
+    { "time": 6.5 },
+    { "time": 7.0, "intensity": 0.9 },
+    { "time": 7.5 }
+  ],
+  "snare": [
+    { "time": 0.5, "intensity": 0.9 },
+    { "time": 1.5, "intensity": 1.0 },
+    { "time": 2.5, "intensity": 0.9 },
+    { "time": 3.5, "intensity": 1.0 },
+    { "time": 4.5, "intensity": 0.9 },
+    { "time": 5.5, "intensity": 1.0 },
+    { "time": 6.5, "intensity": 0.9 },
+    { "time": 7.5, "intensity": 1.0 }
+  ],
+  "custom": [
+    { "time": 0.0, "intensity": 1.0 },
+    { "time": 4.0, "intensity": 1.0 },
+    { "time": 8.0, "intensity": 1.0 }
+  ],
+  "intensityCurve": [
+    { "time": 0.0, "value": 0.2 },
+    { "time": 4.0, "value": 0.8 },
+    { "time": 8.0, "value": 0.2 }
+  ]
+}
