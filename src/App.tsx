@@ -7,6 +7,7 @@ import { GimbalMassController } from './gimbal-mass-controller';
 import { HistoricMassController } from './historic-mass-controller';
 import { MusicMassController } from './music-mass-controller';
 import { AdvancedAudioMassController } from './advanced-audio-mass-controller';
+import { Card7Controller } from './card7-controller';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -148,7 +149,76 @@ function OldMorphingBlob({
   );
 }
 
-function GimbalMorphingBlob({ 
+function Card7Blob({
+  controllerRef,
+  isVantablack,
+  isJarvis
+}: {
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new Card7Controller(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+          controller.resetPointer();
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
+    />
+  );
+}
+
+function GimbalMorphingBlob({
   controllerRef, 
   isVantablack,
   isJarvis,
@@ -555,7 +625,7 @@ export default function App() {
   const [useTimeline, setUseTimeline] = useState(false);
   
   const [cardIndex, setCardIndex] = useState(0);
-  const TOTAL_CARDS = 6;
+  const TOTAL_CARDS = 7;
 
   useEffect(() => {
     if (controllerRef.current) {
@@ -655,6 +725,8 @@ export default function App() {
                   <MusicMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : cardIndex === 5 ? (
                   <AdvancedAudioMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 6 ? (
+                  <Card7Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : (
                   <OldMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 )}
@@ -723,7 +795,7 @@ export default function App() {
               </button>
             )}
 
-            {(cardIndex === 4 || cardIndex === 5) && (
+            {(cardIndex === 4 || cardIndex === 5 || cardIndex === 6) && (
               <button 
                 onClick={() => {
                   if (controllerRef.current && controllerRef.current.enableAudio) {
