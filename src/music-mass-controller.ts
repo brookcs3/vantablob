@@ -692,20 +692,18 @@ export class MusicMassController {
   handleResize: () => void;
   audioAnalyzer: AudioAnalyzer;
   shaderTime: number = 0;
-  danceState: number = 0;
-  danceCooldown: number = 0;
-  
-  // Director state
-  directorMode: 'CHAOS' | 'FLOW' = 'CHAOS';
-  lastSwitchTime: number = 0;
-  flowInterval: number = 0;
-  flowDuration: number = 0;
-  flowState: number = 0;
   bendSpring: SpringValue;
   splitSpring: SpringValue;
-  effectCooldown: number = 0;
 
   morphTime: number = 0;
+
+  // --- Mutex effect cycler ---
+  // One effect active at a time, held for a random duration, then swaps to a
+  // different random effect. No Director, no overlapping choreography.
+  activeEffect: 'bass' | 'treble' | 'snare' | 'tube' | 'squiggle' | 'bend' | 'split' = 'bass';
+  effectTimeRemaining: number = 0;
+  readonly effectList: Array<'bass' | 'treble' | 'snare' | 'tube' | 'squiggle' | 'bend' | 'split'> =
+    ['bass', 'treble', 'snare', 'tube', 'squiggle', 'bend', 'split'];
 
   constructor(container: HTMLElement, options: any = {}) {
     this.container = container;
@@ -748,8 +746,9 @@ export class MusicMassController {
     this.bendSpring = new SpringValue(0, { stiffness: 15, damping: 4 });
     this.splitSpring = new SpringValue(0, { stiffness: 40, damping: 8 });
 
-    this.flowInterval = 14.0 + Math.random() * 14.0;
-    this.flowDuration = 2.2 + Math.random() * 2.0;
+    // Seed the cycler with a random first effect
+    this.activeEffect = this.effectList[Math.floor(Math.random() * this.effectList.length)];
+    this.effectTimeRemaining = 3.0 + Math.random() * 5.0;
 
     this.clock = new THREE.Clock();
     this.frameId = 0;
@@ -868,136 +867,70 @@ export class MusicMassController {
     // Accumulate morph time to prevent reversing when flux drops
     this.morphTime += deltaSeconds * (0.3 + this.audioAnalyzer.flux * 1.0);
 
-    const now = this.clock.elapsedTime;
-    if (this.lastSwitchTime === 0) this.lastSwitchTime = now;
+    // --- MUTEX EFFECT CYCLER ---
+    // One effect at a time, held for a random 3–8s, then swap to a different
+    // random one. Replaces the old Director + choreography + time-reversal.
+    this.effectTimeRemaining -= deltaSeconds;
+    if (this.effectTimeRemaining <= 0) {
+      let next = this.activeEffect;
+      while (next === this.activeEffect) {
+        next = this.effectList[Math.floor(Math.random() * this.effectList.length)];
+      }
+      this.activeEffect = next;
+      this.effectTimeRemaining = 3.0 + Math.random() * 5.0;
 
-    // --- DIRECTOR LOGIC ---
-    if (this.directorMode === 'CHAOS') {
-        const timeInChaos = now - this.lastSwitchTime;
-        const minChaosTime = 5.0; // Minimum time in chaos before an early flow can trigger
-        
-        // Detect a drop in drums/energy or a significant section change
-        const isDropOrCut = this.audioAnalyzer.similarity < 0.65 || (this.audioAnalyzer.bass < 0.15 && this.audioAnalyzer.onset < 0.15);
-        const isOverdue = timeInChaos > this.flowInterval; // 14-28 seconds
-        
-        if ((timeInChaos > minChaosTime && isDropOrCut) || isOverdue) {
-            this.directorMode = 'FLOW';
-            this.lastSwitchTime = now;
-            this.flowDuration = 4.0 + Math.random() * 4.0;
-            // console.log(">>> DIRECTOR: LET IT FLOW (" + (isOverdue ? "Overdue" : "Audio Drop") + ")");
-            
-            // --- TRIGGER SUDDEN EFFECT ON FLOW / DROP ---
-            // Make it rare! Only 30% chance to happen on a transition, and ONLY on actual drops (not timeouts)
-            if (isDropOrCut && Math.random() > 0.7) {
-                if (Math.random() > 0.5) {
-                    // BEND
-                    this.bendSpring.setTarget(1.0);
-                    const dir1 = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-                    const dir2 = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-                    this.material.uniforms.uBendDir1.value.copy(dir1);
-                    this.material.uniforms.uBendDir2.value.copy(dir2);
-                    this.material.uniforms.uBendFreq.value = 2.0 + Math.random() * 6.0;
-                    setTimeout(() => {
-                        if (!this.isDestroyed) this.bendSpring.setTarget(0.0);
-                    }, 1000 + Math.random() * 500); // Hold the bend for 1-1.5s
-                } else {
-                    // SPLIT (Mitosis)
-                    this.splitSpring.setTarget(1.0);
-                    const axis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-                    this.material.uniforms.uSplitAxis.value.copy(axis);
-                    setTimeout(() => {
-                        if (!this.isDestroyed) this.splitSpring.setTarget(0.0);
-                    }, 1200 + Math.random() * 600); // Hold the split for 1.2-1.8s
-                }
-            }
-        }
-    } else {
-        if (now - this.lastSwitchTime > this.flowDuration) {
-            this.directorMode = 'CHAOS';
-            this.lastSwitchTime = now;
-            this.flowInterval = 14.0 + Math.random() * 14.0;
-            // console.log(">>> DIRECTOR: CUT. Back to Chaos.");
-            this.tubeSpring.setTarget(0);
-            this.squiggleSpring.setTarget(0);
-        }
+      // Re-seed direction vectors so effect feels fresh each activation
+      if (next === 'bend') {
+        const d1 = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+        const d2 = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+        this.material.uniforms.uBendDir1.value.copy(d1);
+        this.material.uniforms.uBendDir2.value.copy(d2);
+        this.material.uniforms.uBendFreq.value = 2.0 + Math.random() * 6.0;
+      } else if (next === 'split') {
+        const axis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+        this.material.uniforms.uSplitAxis.value.copy(axis);
+      }
     }
 
-    const targetFlow = this.directorMode === 'FLOW' ? 1.0 : 0.0;
-    this.flowState += (targetFlow - this.flowState) * deltaSeconds * 3.0;
+    // Spring targets — only the active choreography spring gets a non-zero target.
+    this.tubeSpring.setTarget(this.activeEffect === 'tube' ? 0.8 : 0);
+    this.squiggleSpring.setTarget(this.activeEffect === 'squiggle' ? 1.0 : 0);
+    this.bendSpring.setTarget(this.activeEffect === 'bend' ? 1.0 : 0);
+    this.splitSpring.setTarget(this.activeEffect === 'split' ? 1.0 : 0);
 
-    // --- CHOREOGRAPHY LOGIC ---
-    this.danceCooldown -= deltaSeconds;
-    
-    if (this.directorMode === 'CHAOS') {
-        // Trigger dance move on big drops/changes
-        if (this.danceCooldown <= 0 && this.audioAnalyzer.similarity < 0.8 && this.audioAnalyzer.onset > 0.3) {
-            // Pick a random state from 1 to 4
-            this.danceState = Math.floor(Math.random() * 4) + 1;
-            this.danceCooldown = 3.0 + Math.random() * 3.0; // 3 to 6 seconds
-            
-            switch(this.danceState) {
-                case 1: // Long Tube Loop
-                    this.tubeSpring.setTarget(1.0);
-                    this.squiggleSpring.setTarget(0.8);
-                    break;
-                case 2: // Dancing Squiggle
-                    this.tubeSpring.setTarget(0.2);
-                    this.squiggleSpring.setTarget(1.2);
-                    break;
-                case 3: // Flattened Wiggle
-                    this.tubeSpring.setTarget(-0.7);
-                    this.squiggleSpring.setTarget(0.5);
-                    break;
-                case 4: // Tall & Still
-                    this.tubeSpring.setTarget(0.8);
-                    this.squiggleSpring.setTarget(0.1);
-                    break;
-            }
-        }
-        
-        // Revert to normal if no big drops happen for a while after cooldown
-        if (this.danceCooldown <= -2.0 && this.danceState !== 0) {
-            this.danceState = 0;
-            this.tubeSpring.setTarget(0);
-            this.squiggleSpring.setTarget(0);
-            this.danceCooldown = 1.0; // Short cooldown before it can dance again
-        }
-    } else {
-        // FLOW mode choreography - smooth sweeping motions
-        const flowTime = now - this.lastSwitchTime;
-        this.tubeSpring.setTarget(Math.sin(flowTime * 1.2) * 0.8);
-        this.squiggleSpring.setTarget(0.4 + Math.cos(flowTime * 0.8) * 0.6);
-    }
-
-    // Time manipulation based on audio
-    let timeSpeed = 1.0;
-    if (this.audioAnalyzer.treble > 0.5) {
-        timeSpeed = -1.5; // Rewind on high hats
-    } else if (this.audioAnalyzer.bass > 0.6) {
-        timeSpeed = 2.0; // Fast forward on heavy sub
-    }
-    this.shaderTime += deltaSeconds * timeSpeed;
+    // Shader time always runs forward — no more reversals.
+    this.shaderTime += deltaSeconds;
 
     this.material.uniforms.uTime.value = this.shaderTime;
     this.material.uniforms.uEnergy.value = energy;
     this.material.uniforms.uPresence.value = active;
     this.material.uniforms.uPointer.value.copy(this.pointer);
     
-    // Pass audio features to shader
-    this.material.uniforms.uBass.value = this.audioAnalyzer.bass;
-    this.material.uniforms.uTreble.value = this.audioAnalyzer.treble;
-    this.material.uniforms.uBassHit.value = this.audioAnalyzer.bassHit;
-    this.material.uniforms.uTrebleHit.value = this.audioAnalyzer.trebleHit;
-    this.material.uniforms.uSnareHit.value = this.audioAnalyzer.snareHit;
+    // Mask audio-reactive uniforms by active effect (mutex).
+    // Only the currently-active feature's signal reaches the shader.
+    const isBass   = this.activeEffect === 'bass';
+    const isTreble = this.activeEffect === 'treble';
+    const isSnare  = this.activeEffect === 'snare';
+    this.material.uniforms.uBass.value      = isBass   ? this.audioAnalyzer.bass     : 0;
+    this.material.uniforms.uTreble.value    = isTreble ? this.audioAnalyzer.treble   : 0;
+    this.material.uniforms.uBassHit.value   = isBass   ? this.audioAnalyzer.bassHit  : 0;
+    this.material.uniforms.uTrebleHit.value = isTreble ? this.audioAnalyzer.trebleHit: 0;
+    this.material.uniforms.uSnareHit.value  = isSnare  ? this.audioAnalyzer.snareHit : 0;
+
+    // Ambient signals (always on, not mutex'd): onset + basic timbre
     this.material.uniforms.uOnset.value = this.audioAnalyzer.onset;
     this.material.uniforms.uSquelch.value = this.audioAnalyzer.squelch;
     this.material.uniforms.uCentroid.value = this.audioAnalyzer.centroid;
     this.material.uniforms.uSimilarity.value = this.audioAnalyzer.similarity;
+
+    // Choreography spring blends — always pushed; only active one is non-zero target
     this.material.uniforms.uTubeBlend.value = tubeBlend;
     this.material.uniforms.uSquiggleBlend.value = squiggleBlend;
-    this.material.uniforms.uFlowState.value = this.flowState;
     this.material.uniforms.uBend.value = bendBlend;
     this.material.uniforms.uSplit.value = splitBlend;
+
+    // FlowState was Director-driven; Director is gone, so hold at 0.
+    this.material.uniforms.uFlowState.value = 0;
     
     // Advanced 303 metrics
     this.material.uniforms.uFlux.value = this.audioAnalyzer.flux;

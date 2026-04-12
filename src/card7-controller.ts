@@ -379,6 +379,12 @@ export class Card7Controller {
   snarePrev: Uint8Array | null = null;
   snare: number = 0; // 0..1, peak-hold with decay, same envelope as onset
 
+  // Base RGB of the card background, parsed from preset.backgroundColor.
+  // Per-frame we lift each channel by `snare * SNARE_BG_LIFT` to pulse on hits.
+  bgBaseR: number = 17;
+  bgBaseG: number = 17;
+  bgBaseB: number = 17;
+
   constructor(container: HTMLElement, options: any = {}) {
     this.container = container;
     this.preset = { ...BASE_PRESET, ...(options.preset ?? {}) };
@@ -458,7 +464,15 @@ export class Card7Controller {
     this.material.uniforms.uBlobColor.value.set(this.preset.fillColor);
     
     this.renderer.setClearColor(this.preset.backgroundColor, 0);
-    
+
+    // Parse #RRGGBB into cached RGB ints (fallback to dark grey if malformed)
+    const hex = (this.preset.backgroundColor || '#111111').replace('#', '');
+    if (hex.length === 6) {
+      this.bgBaseR = parseInt(hex.slice(0, 2), 16);
+      this.bgBaseG = parseInt(hex.slice(2, 4), 16);
+      this.bgBaseB = parseInt(hex.slice(4, 6), 16);
+    }
+
     // Update container background color if we want it to match
     if (this.container.parentElement) {
       this.container.parentElement.style.backgroundColor = this.preset.backgroundColor;
@@ -612,6 +626,16 @@ export class Card7Controller {
     this.updateAudio();
     this.material.uniforms.uOnset.value = this.onset;
     this.material.uniforms.uSnare.value = this.snare;
+
+    // Snare → slight lift on card background color (subtle ambient pulse)
+    if (this.container.parentElement) {
+      const SNARE_BG_LIFT = 25; // max added to each channel on a full-intensity snare
+      const lift = this.snare * SNARE_BG_LIFT;
+      const r = Math.min(255, Math.round(this.bgBaseR + lift));
+      const g = Math.min(255, Math.round(this.bgBaseG + lift));
+      const b = Math.min(255, Math.round(this.bgBaseB + lift));
+      this.container.parentElement.style.backgroundColor = `rgb(${r},${g},${b})`;
+    }
 
     const active = this.activeSpring.update(deltaSeconds);
     const energy = this.energySpring.update(deltaSeconds);
