@@ -8,6 +8,22 @@ import { HistoricMassController } from './historic-mass-controller';
 import { MusicMassController } from './music-mass-controller';
 import { AdvancedAudioMassController } from './advanced-audio-mass-controller';
 import { Card7Controller } from './card7-controller';
+import { Card8Controller } from './card8-controller';
+import { Card9Controller } from './card9-controller';
+import { Card10Controller } from './card10-controller';
+import { Card11Controller } from './card11-controller';
+import { Card12Controller } from './card12-controller';
+import { Card13Controller } from './card13-controller';
+import { Card14Controller } from './card14-controller';
+import { Card15Controller } from './card15-controller';
+import { Card16Controller } from './card16-controller';
+import { Card17Controller } from './card17-controller';
+import { Card18Controller } from './card18-controller';
+import { Card19Controller } from './card19-controller';
+import { Card20Controller } from './card20-controller';
+import { Card21Controller } from './card21-controller';
+import { Card22Controller } from './card22-controller';
+import { Card23Controller } from './card23-controller';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -187,6 +203,213 @@ function Card7Blob({
       controller.setActive(false);
       controller.setEnergy(0.18);
           controller.resetPointer();
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
+    />
+  );
+}
+
+function Card8Blob({
+  controllerRef,
+  isVantablack,
+  isJarvis
+}: {
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new Card8Controller(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+      controller.resetPointer();
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
+    />
+  );
+}
+
+function Card9Blob({
+  controllerRef,
+  isVantablack,
+  isJarvis
+}: {
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new Card9Controller(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+      controller.resetPointer();
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
+    />
+  );
+}
+
+function Card10Blob({
+  controllerRef,
+  isVantablack,
+  isJarvis
+}: {
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new Card10Controller(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+      controller.resetPointer();
     };
 
     const handleFocus = () => controller.setActive(true);
@@ -616,6 +839,409 @@ function AdvancedAudioMorphingBlob({
   );
 }
 
+function Card11Blob({
+  controllerRef,
+  isVantablack,
+  isJarvis
+}: {
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new Card11Controller(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+      controller.resetPointer();
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
+    />
+  );
+}
+
+function Card12Blob({
+  controllerRef,
+  isVantablack,
+  isJarvis
+}: {
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new Card12Controller(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = () => {
+      controller.setActive(true);
+      controller.setEnergy(0.9);
+    };
+
+    const handlePointerUp = () => {
+      controller.setEnergy(0.3);
+    };
+
+    const handlePointerLeave = () => {
+      controller.setActive(false);
+      controller.setEnergy(0.18);
+      controller.resetPointer();
+    };
+
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full min-h-[400px] flex items-center justify-center"
+    />
+  );
+}
+
+function Card13Blob({
+  controllerRef,
+  isVantablack,
+  isJarvis
+}: {
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new Card13Controller(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+    const handlePointerDown = () => { controller.setActive(true); controller.setEnergy(0.9); };
+    const handlePointerUp = () => { controller.setEnergy(0.3); };
+    const handlePointerLeave = () => { controller.setActive(false); controller.setEnergy(0.18); controller.resetPointer(); };
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return <div ref={containerRef} className="w-full h-full min-h-[400px] flex items-center justify-center" />;
+}
+
+function Card14Blob({
+  controllerRef,
+  isVantablack,
+  isJarvis
+}: {
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new Card14Controller(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+    const handlePointerDown = () => { controller.setActive(true); controller.setEnergy(0.9); };
+    const handlePointerUp = () => { controller.setEnergy(0.3); };
+    const handlePointerLeave = () => { controller.setActive(false); controller.setEnergy(0.18); controller.resetPointer(); };
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return <div ref={containerRef} className="w-full h-full min-h-[400px] flex items-center justify-center" />;
+}
+
+function Card15Blob({
+  controllerRef,
+  isVantablack,
+  isJarvis
+}: {
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new Card15Controller(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+    const handlePointerDown = () => { controller.setActive(true); controller.setEnergy(0.9); };
+    const handlePointerUp = () => { controller.setEnergy(0.3); };
+    const handlePointerLeave = () => { controller.setActive(false); controller.setEnergy(0.18); controller.resetPointer(); };
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return <div ref={containerRef} className="w-full h-full min-h-[400px] flex items-center justify-center" />;
+}
+
+function Card16Blob({
+  controllerRef,
+  isVantablack,
+  isJarvis
+}: {
+  controllerRef: React.MutableRefObject<any>;
+  isVantablack: boolean;
+  isJarvis: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const controller = new Card16Controller(containerRef.current, {
+      preset: OLD_MASS_PRESETS[0]
+    });
+    controller.setVantablack(isVantablack);
+    controller.setJarvis(isJarvis);
+    controllerRef.current = controller;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      controller.setPointer(event.clientX, event.clientY);
+    };
+    const handlePointerDown = () => { controller.setActive(true); controller.setEnergy(0.9); };
+    const handlePointerUp = () => { controller.setEnergy(0.3); };
+    const handlePointerLeave = () => { controller.setActive(false); controller.setEnergy(0.18); controller.resetPointer(); };
+    const handleFocus = () => controller.setActive(true);
+    const handleBlur = () => controller.setActive(false);
+
+    containerRef.current.addEventListener('pointermove', handlePointerMove);
+    containerRef.current.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+      containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      controller.destroy();
+    };
+  }, []);
+
+  return <div ref={containerRef} className="w-full h-full min-h-[400px] flex items-center justify-center" />;
+}
+
+function makeCardBlob(ControllerClass: any) {
+  return function CardBlob({
+    controllerRef,
+    isVantablack,
+    isJarvis
+  }: {
+    controllerRef: React.MutableRefObject<any>;
+    isVantablack: boolean;
+    isJarvis: boolean;
+  }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      if (!containerRef.current) return;
+
+      const controller = new ControllerClass(containerRef.current, {
+        preset: OLD_MASS_PRESETS[0]
+      });
+      controller.setVantablack(isVantablack);
+      controller.setJarvis(isJarvis);
+      controllerRef.current = controller;
+
+      const handlePointerMove = (event: PointerEvent) => {
+        controller.setPointer(event.clientX, event.clientY);
+      };
+      const handlePointerDown = () => { controller.setActive(true); controller.setEnergy(0.9); };
+      const handlePointerUp = () => { controller.setEnergy(0.3); };
+      const handlePointerLeave = () => { controller.setActive(false); controller.setEnergy(0.18); controller.resetPointer(); };
+      const handleFocus = () => controller.setActive(true);
+      const handleBlur = () => controller.setActive(false);
+
+      containerRef.current.addEventListener('pointermove', handlePointerMove);
+      containerRef.current.addEventListener('pointerdown', handlePointerDown);
+      window.addEventListener('pointerup', handlePointerUp);
+      containerRef.current.addEventListener('pointerleave', handlePointerLeave);
+      window.addEventListener('focus', handleFocus);
+      window.addEventListener('blur', handleBlur);
+
+      return () => {
+        containerRef.current?.removeEventListener('pointermove', handlePointerMove);
+        containerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+        window.removeEventListener('pointerup', handlePointerUp);
+        containerRef.current?.removeEventListener('pointerleave', handlePointerLeave);
+        window.removeEventListener('focus', handleFocus);
+        window.removeEventListener('blur', handleBlur);
+        controller.destroy();
+      };
+    }, []);
+
+    return <div ref={containerRef} className="w-full h-full min-h-[400px] flex items-center justify-center" />;
+  };
+}
+
+const Card17Blob = makeCardBlob(Card17Controller);
+const Card18Blob = makeCardBlob(Card18Controller);
+const Card19Blob = makeCardBlob(Card19Controller);
+const Card20Blob = makeCardBlob(Card20Controller);
+const Card21Blob = makeCardBlob(Card21Controller);
+const Card22Blob = makeCardBlob(Card22Controller);
+const Card23Blob = makeCardBlob(Card23Controller);
+
 export default function App() {
   const controllerRef = useRef<any>(null);
   const [presetIndex, setPresetIndex] = useState(0);
@@ -625,7 +1251,7 @@ export default function App() {
   const [useTimeline, setUseTimeline] = useState(false);
   
   const [cardIndex, setCardIndex] = useState(0);
-  const TOTAL_CARDS = 7;
+  const TOTAL_CARDS = 23;
 
   useEffect(() => {
     if (controllerRef.current) {
@@ -727,6 +1353,38 @@ export default function App() {
                   <AdvancedAudioMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : cardIndex === 6 ? (
                   <Card7Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 7 ? (
+                  <Card8Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 8 ? (
+                  <Card9Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 9 ? (
+                  <Card10Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 10 ? (
+                  <Card11Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 11 ? (
+                  <Card12Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 12 ? (
+                  <Card13Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 13 ? (
+                  <Card14Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 14 ? (
+                  <Card15Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 15 ? (
+                  <Card16Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 16 ? (
+                  <Card17Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 17 ? (
+                  <Card18Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 18 ? (
+                  <Card19Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 19 ? (
+                  <Card20Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 20 ? (
+                  <Card21Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 21 ? (
+                  <Card22Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 22 ? (
+                  <Card23Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : (
                   <OldMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 )}
@@ -795,8 +1453,8 @@ export default function App() {
               </button>
             )}
 
-            {(cardIndex === 4 || cardIndex === 5 || cardIndex === 6) && (
-              <button 
+            {cardIndex >= 4 && cardIndex <= 22 && (
+              <button
                 onClick={() => {
                   if (controllerRef.current && controllerRef.current.enableAudio) {
                     controllerRef.current.enableAudio();
@@ -805,7 +1463,7 @@ export default function App() {
                 className="px-6 py-3 bg-fuchsia-600 text-white border border-fuchsia-500 rounded-full font-medium hover:bg-fuchsia-500 transition-colors shadow-[0_0_15px_rgba(192,38,211,0.5)] flex items-center gap-2"
               >
                 <Play size={18} />
-                Play ms.mp3
+                Play {cardIndex === 4 ? 'ms.mp3' : cardIndex === 5 ? 'ms.mp3' : cardIndex === 6 ? 'ms.mp3' : cardIndex === 7 ? 'knees.mp3' : cardIndex === 8 ? 'charcoal.mp3' : cardIndex === 9 ? 'zoogaze.mp3' : cardIndex === 10 ? 'echoplxjm.mp3' : cardIndex === 11 ? 'gotsumthin.mp3' : cardIndex === 12 ? 'softtouch.mp3' : cardIndex === 13 ? 'foyou.mp3' : cardIndex === 14 ? 'ca.mp3' : cardIndex === 15 ? 'elevated.mp3' : cardIndex === 16 ? 'echoplxjm2.mp3' : cardIndex === 17 ? 'dq2.mp3' : cardIndex === 18 ? 'threed.mp3' : cardIndex === 19 ? 'elevated2.mp3' : cardIndex === 20 ? 'untitled5.mp3' : cardIndex === 21 ? 'mashup24.mp3' : 'mirror.mp3'}
               </button>
             )}
           </div>
@@ -839,13 +1497,13 @@ export default function App() {
             <div>
               <dt className="text-sm text-gray-500 mb-1">Family</dt>
               <dd className="font-medium text-gray-300 capitalize">
-                {cardIndex === 0 ? 'Ferrofluid / Sludge' : cardIndex === 2 ? 'Aerotrim Gimbal' : cardIndex === 3 ? 'Historic Blob' : cardIndex === 4 ? 'Sonic Mass' : 'Magnetic Orbits'}
+                {cardIndex === 0 ? 'Ferrofluid / Sludge' : cardIndex === 2 ? 'Aerotrim Gimbal' : cardIndex === 3 ? 'Historic Blob' : cardIndex === 4 ? 'Sonic Mass' : cardIndex === 5 ? 'Advanced Audio' : cardIndex === 6 ? 'Snare Flux' : cardIndex === 7 ? 'Event Reactive' : cardIndex === 8 ? 'Snare Flux' : cardIndex === 9 ? 'Event Reactive' : cardIndex === 10 ? 'Snare Flux' : cardIndex === 11 ? 'Event Reactive' : cardIndex === 12 ? 'Snare Flux' : cardIndex === 13 ? 'Event Reactive' : cardIndex === 14 ? 'Snare Flux' : cardIndex === 15 ? 'Event Reactive' : cardIndex === 16 ? 'Snare Flux' : cardIndex === 17 ? 'Event Reactive' : cardIndex === 18 ? 'Snare Flux' : cardIndex === 19 ? 'Event Reactive' : cardIndex === 20 ? 'Snare Flux' : cardIndex === 21 ? 'Event Reactive' : cardIndex === 22 ? 'Snare Flux' : 'Magnetic Orbits'}
               </dd>
             </div>
             <div>
               <dt className="text-sm text-gray-500 mb-1">Motion</dt>
               <dd className="font-medium text-gray-300">
-                {cardIndex === 0 ? 'magnetic pull + fluid noise' : cardIndex === 2 ? '3-axis gimbal + slooge' : cardIndex === 3 ? 'saw blade spin' : cardIndex === 4 ? 'audio reactive displacement' : 'orbiting magnets + displacement'}
+                {cardIndex === 0 ? 'magnetic pull + fluid noise' : cardIndex === 2 ? '3-axis gimbal + slooge' : cardIndex === 3 ? 'saw blade spin' : cardIndex === 4 ? 'audio reactive displacement' : cardIndex === 5 ? 'dual-mode DSP + timeline' : cardIndex === 6 ? 'dual-band flux + notKick gate' : cardIndex === 7 ? 'event flux + squiggle/split' : cardIndex === 8 ? 'dual-band flux + notKick gate' : cardIndex === 9 ? 'event flux + squiggle/split' : cardIndex === 10 ? 'dual-band flux + notKick gate' : cardIndex === 11 ? 'event flux + squiggle/split' : cardIndex === 12 ? 'dual-band flux + notKick gate' : cardIndex === 13 ? 'event flux + squiggle/split' : cardIndex === 14 ? 'dual-band flux + notKick gate' : cardIndex === 15 ? 'event flux + squiggle/split' : cardIndex === 16 ? 'dual-band flux + notKick gate' : cardIndex === 17 ? 'event flux + squiggle/split' : cardIndex === 18 ? 'dual-band flux + notKick gate' : cardIndex === 19 ? 'event flux + squiggle/split' : cardIndex === 20 ? 'dual-band flux + notKick gate' : cardIndex === 21 ? 'event flux + squiggle/split' : cardIndex === 22 ? 'dual-band flux + notKick gate' : 'orbiting magnets + displacement'}
               </dd>
             </div>
           </dl>
