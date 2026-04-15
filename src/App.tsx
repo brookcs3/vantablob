@@ -24,6 +24,9 @@ import { Card20Controller } from './card20-controller';
 import { Card21Controller } from './card21-controller';
 import { Card22Controller } from './card22-controller';
 import { Card23Controller } from './card23-controller';
+import { Card24Controller } from './card24-controller';
+import { Card25Controller } from './card25-controller';
+import { Card26Controller } from './card26-controller';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -1241,6 +1244,9 @@ const Card20Blob = makeCardBlob(Card20Controller);
 const Card21Blob = makeCardBlob(Card21Controller);
 const Card22Blob = makeCardBlob(Card22Controller);
 const Card23Blob = makeCardBlob(Card23Controller);
+const Card24Blob = makeCardBlob(Card24Controller);
+const Card25Blob = makeCardBlob(Card25Controller);
+const Card26Blob = makeCardBlob(Card26Controller);
 
 export default function App() {
   const controllerRef = useRef<any>(null);
@@ -1251,7 +1257,7 @@ export default function App() {
   const [useTimeline, setUseTimeline] = useState(false);
   
   const [cardIndex, setCardIndex] = useState(0);
-  const TOTAL_CARDS = 23;
+  const TOTAL_CARDS = 26;
 
   useEffect(() => {
     if (controllerRef.current) {
@@ -1385,6 +1391,12 @@ export default function App() {
                   <Card22Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : cardIndex === 22 ? (
                   <Card23Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 23 ? (
+                  <Card24Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 24 ? (
+                  <Card25Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 25 ? (
+                  <Card26Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : (
                   <OldMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 )}
@@ -1453,7 +1465,7 @@ export default function App() {
               </button>
             )}
 
-            {cardIndex >= 4 && cardIndex <= 22 && (
+            {cardIndex >= 4 && cardIndex <= 25 && (
               <button
                 onClick={() => {
                   if (controllerRef.current && controllerRef.current.enableAudio) {
@@ -1463,7 +1475,7 @@ export default function App() {
                 className="px-6 py-3 bg-fuchsia-600 text-white border border-fuchsia-500 rounded-full font-medium hover:bg-fuchsia-500 transition-colors shadow-[0_0_15px_rgba(192,38,211,0.5)] flex items-center gap-2"
               >
                 <Play size={18} />
-                Play {cardIndex === 4 ? 'ms.mp3' : cardIndex === 5 ? 'ms.mp3' : cardIndex === 6 ? 'ms.mp3' : cardIndex === 7 ? 'knees.mp3' : cardIndex === 8 ? 'charcoal.mp3' : cardIndex === 9 ? 'zoogaze.mp3' : cardIndex === 10 ? 'echoplxjm.mp3' : cardIndex === 11 ? 'gotsumthin.mp3' : cardIndex === 12 ? 'softtouch.mp3' : cardIndex === 13 ? 'foyou.mp3' : cardIndex === 14 ? 'ca.mp3' : cardIndex === 15 ? 'elevated.mp3' : cardIndex === 16 ? 'echoplxjm2.mp3' : cardIndex === 17 ? 'dq2.mp3' : cardIndex === 18 ? 'threed.mp3' : cardIndex === 19 ? 'elevated2.mp3' : cardIndex === 20 ? 'untitled5.mp3' : cardIndex === 21 ? 'mashup24.mp3' : 'mirror.mp3'}
+                Play {cardIndex === 4 ? 'ms.mp3' : cardIndex === 5 ? 'ms.mp3' : cardIndex === 6 ? 'ms.mp3' : cardIndex === 7 ? 'knees.mp3' : cardIndex === 8 ? 'charcoal.mp3' : cardIndex === 9 ? 'zoogaze.mp3' : cardIndex === 10 ? 'echoplxjm.mp3' : cardIndex === 11 ? 'gotsumthin.mp3' : cardIndex === 12 ? 'softtouch.mp3' : cardIndex === 13 ? 'foyou.mp3' : cardIndex === 14 ? 'ca.mp3' : cardIndex === 15 ? 'elevated.mp3' : cardIndex === 16 ? 'echoplxjm2.mp3' : cardIndex === 17 ? 'dq2.mp3' : cardIndex === 18 ? 'threed.mp3' : cardIndex === 19 ? 'elevated2.mp3' : cardIndex === 20 ? 'untitled5.mp3' : cardIndex === 21 ? 'mashup24.mp3' : cardIndex === 22 ? 'mirror.mp3' : 'ms.mp3'}
               </button>
             )}
           </div>
@@ -1497,13 +1509,13 @@ export default function App() {
             <div>
               <dt className="text-sm text-gray-500 mb-1">Family</dt>
               <dd className="font-medium text-gray-300 capitalize">
-                {cardIndex === 0 ? 'Ferrofluid / Sludge' : cardIndex === 2 ? 'Aerotrim Gimbal' : cardIndex === 3 ? 'Historic Blob' : cardIndex === 4 ? 'Sonic Mass' : cardIndex === 5 ? 'Advanced Audio' : cardIndex === 6 ? 'Snare Flux' : cardIndex === 7 ? 'Event Reactive' : cardIndex === 8 ? 'Snare Flux' : cardIndex === 9 ? 'Event Reactive' : cardIndex === 10 ? 'Snare Flux' : cardIndex === 11 ? 'Event Reactive' : cardIndex === 12 ? 'Snare Flux' : cardIndex === 13 ? 'Event Reactive' : cardIndex === 14 ? 'Snare Flux' : cardIndex === 15 ? 'Event Reactive' : cardIndex === 16 ? 'Snare Flux' : cardIndex === 17 ? 'Event Reactive' : cardIndex === 18 ? 'Snare Flux' : cardIndex === 19 ? 'Event Reactive' : cardIndex === 20 ? 'Snare Flux' : cardIndex === 21 ? 'Event Reactive' : cardIndex === 22 ? 'Snare Flux' : 'Magnetic Orbits'}
+                {cardIndex === 0 ? 'Ferrofluid / Sludge' : cardIndex === 2 ? 'Aerotrim Gimbal' : cardIndex === 3 ? 'Historic Blob' : cardIndex === 4 ? 'Sonic Mass' : cardIndex === 5 ? 'Advanced Audio' : cardIndex === 6 ? 'Snare Flux' : cardIndex === 7 ? 'Event Reactive' : cardIndex === 8 ? 'Snare Flux' : cardIndex === 9 ? 'Event Reactive' : cardIndex === 10 ? 'Snare Flux' : cardIndex === 11 ? 'Event Reactive' : cardIndex === 12 ? 'Snare Flux' : cardIndex === 13 ? 'Event Reactive' : cardIndex === 14 ? 'Snare Flux' : cardIndex === 15 ? 'Event Reactive' : cardIndex === 16 ? 'Snare Flux' : cardIndex === 17 ? 'Event Reactive' : cardIndex === 18 ? 'Snare Flux' : cardIndex === 19 ? 'Event Reactive' : cardIndex === 20 ? 'Snare Flux' : cardIndex === 21 ? 'Event Reactive' : cardIndex === 22 ? 'Snare Flux' : cardIndex === 23 ? 'Ferrofluid Reactive (A)' : cardIndex === 24 ? 'Ferrofluid Reactive (B)' : cardIndex === 25 ? 'Ferrofluid Reactive (C)' : 'Magnetic Orbits'}
               </dd>
             </div>
             <div>
               <dt className="text-sm text-gray-500 mb-1">Motion</dt>
               <dd className="font-medium text-gray-300">
-                {cardIndex === 0 ? 'magnetic pull + fluid noise' : cardIndex === 2 ? '3-axis gimbal + slooge' : cardIndex === 3 ? 'saw blade spin' : cardIndex === 4 ? 'audio reactive displacement' : cardIndex === 5 ? 'dual-mode DSP + timeline' : cardIndex === 6 ? 'dual-band flux + notKick gate' : cardIndex === 7 ? 'event flux + squiggle/split' : cardIndex === 8 ? 'dual-band flux + notKick gate' : cardIndex === 9 ? 'event flux + squiggle/split' : cardIndex === 10 ? 'dual-band flux + notKick gate' : cardIndex === 11 ? 'event flux + squiggle/split' : cardIndex === 12 ? 'dual-band flux + notKick gate' : cardIndex === 13 ? 'event flux + squiggle/split' : cardIndex === 14 ? 'dual-band flux + notKick gate' : cardIndex === 15 ? 'event flux + squiggle/split' : cardIndex === 16 ? 'dual-band flux + notKick gate' : cardIndex === 17 ? 'event flux + squiggle/split' : cardIndex === 18 ? 'dual-band flux + notKick gate' : cardIndex === 19 ? 'event flux + squiggle/split' : cardIndex === 20 ? 'dual-band flux + notKick gate' : cardIndex === 21 ? 'event flux + squiggle/split' : cardIndex === 22 ? 'dual-band flux + notKick gate' : 'orbiting magnets + displacement'}
+                {cardIndex === 0 ? 'magnetic pull + fluid noise' : cardIndex === 2 ? '3-axis gimbal + slooge' : cardIndex === 3 ? 'saw blade spin' : cardIndex === 4 ? 'audio reactive displacement' : cardIndex === 5 ? 'dual-mode DSP + timeline' : cardIndex === 6 ? 'dual-band flux + notKick gate' : cardIndex === 7 ? 'event flux + squiggle/split' : cardIndex === 8 ? 'dual-band flux + notKick gate' : cardIndex === 9 ? 'event flux + squiggle/split' : cardIndex === 10 ? 'dual-band flux + notKick gate' : cardIndex === 11 ? 'event flux + squiggle/split' : cardIndex === 12 ? 'dual-band flux + notKick gate' : cardIndex === 13 ? 'event flux + squiggle/split' : cardIndex === 14 ? 'dual-band flux + notKick gate' : cardIndex === 15 ? 'event flux + squiggle/split' : cardIndex === 16 ? 'dual-band flux + notKick gate' : cardIndex === 17 ? 'event flux + squiggle/split' : cardIndex === 18 ? 'dual-band flux + notKick gate' : cardIndex === 19 ? 'event flux + squiggle/split' : cardIndex === 20 ? 'dual-band flux + notKick gate' : cardIndex === 21 ? 'event flux + squiggle/split' : cardIndex === 22 ? 'dual-band flux + notKick gate' : cardIndex === 23 ? 'audio → preset springs (physics only)' : cardIndex === 24 ? 'audio → shader uniforms (direct)' : cardIndex === 25 ? 'hybrid: kick/onset springs + direct snare' : 'orbiting magnets + displacement'}
               </dd>
             </div>
           </dl>
