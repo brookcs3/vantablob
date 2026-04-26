@@ -1383,7 +1383,11 @@ export default function App() {
     <div className="min-h-screen bg-[#111111] text-white font-sans flex flex-col items-center justify-center p-8 overflow-hidden">
       <div className="w-full max-w-4xl flex flex-col gap-8 relative">
 
-        <div className="text-center text-gray-300 text-sm tracking-wide">Cameron Brooks</div>
+        <div className="text-center text-sm tracking-wide">
+          <span className="text-gray-300">Cameron Brooks</span>
+          <span className="text-gray-600"> · </span>
+          <a href="mailto:ca.br@me.com" className="text-gray-400 hover:text-gray-200 transition-colors">ca.br@me.com</a>
+        </div>
 
         {/* Carousel Container */}
         <div className="relative w-full flex items-center justify-center">
