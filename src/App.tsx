@@ -1262,6 +1262,7 @@ export default function App() {
   const VISIBLE_CARDS = [
     { slug: 'zoogaze',    title: 'zoogaze',    family: SF, motion: SF_M, Blob: Card7Blob  },
     { slug: 'foyou',      title: 'foyou',      family: SF, motion: SF_M, Blob: Card13Blob },
+    { slug: 'threed',     title: 'threed',     family: FD, motion: FD_M, Blob: Card18Blob },
     { slug: 'softtouch',  title: 'softtouch',  family: FD, motion: FD_M, Blob: Card12Blob },
     { slug: 'charcoal',   title: 'charcoal',   family: FD, motion: FD_M, Blob: Card9Blob  },
     { slug: 'knees',      title: 'knees',      family: ER, motion: ER_M, Blob: Card8Blob  },
@@ -1271,7 +1272,6 @@ export default function App() {
     { slug: 'elevated',   title: 'elevated',   family: FD, motion: FD_M, Blob: Card15Blob },
     { slug: 'echoplxjm2', title: 'echoplxjm2', family: SF, motion: SF_M, Blob: Card16Blob },
     { slug: 'dq2',        title: 'dq2',        family: ER, motion: ER_M, Blob: Card17Blob },
-    { slug: 'threed',     title: 'threed',     family: FD, motion: FD_M, Blob: Card18Blob },
     { slug: 'elevated2',  title: 'elevated2',  family: SF, motion: SF_M, Blob: Card19Blob },
     { slug: 'untitled5',  title: 'untitled5',  family: ER, motion: ER_M, Blob: Card20Blob },
     { slug: 'mashup24',   title: 'mashup24',   family: FD, motion: FD_M, Blob: Card21Blob },
