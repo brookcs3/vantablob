@@ -98,7 +98,7 @@ class AudioAnalyzer {
     this.fluxPrev = new Uint8Array(this.fluxAnalyser.frequencyBinCount);
 
     try {
-      this.audioElement = new Audio('/songs/elevated2.mp3');
+      this.audioElement = new Audio('/songs/untitled5.mp3');
       this.audioElement.crossOrigin = "anonymous";
       this.audioElement.loop = true;
 
@@ -584,6 +584,7 @@ export class Card20Controller {
   audioAnalyzer: AudioAnalyzer;
   shaderTime: number = 0;
   morphTime: number = 0;
+  gimbalSpeed: number = 1.0;
 
   // Event-hygiene cooldowns — prevent re-triggering on the decay tail of the
   // previous event. Not a clock rotator: event triggers still require a real
@@ -733,6 +734,10 @@ export class Card20Controller {
     this.energySpring.setTarget(THREE.MathUtils.clamp(level, 0.08, 1));
   }
 
+  setGimbalSpeed(speed: number) {
+    this.gimbalSpeed = speed;
+  }
+
   resize(width?: number, height?: number) {
     const nextWidth = width ?? this.container.clientWidth ?? window.innerWidth;
     const nextHeight = height ?? this.container.clientHeight ?? window.innerHeight;
@@ -771,8 +776,8 @@ export class Card20Controller {
     this.audioAnalyzer.update();
 
     // Monotonic morph-time (never reverses, modulated by raw flux).
-    this.morphTime += deltaSeconds * (0.3 + this.audioAnalyzer.flux * 1.0);
-    this.shaderTime += deltaSeconds;
+    this.morphTime += deltaSeconds * this.gimbalSpeed * (0.3 + this.audioAnalyzer.flux * 1.0);
+    this.shaderTime += deltaSeconds * this.gimbalSpeed;
 
     const now = this.shaderTime;
 

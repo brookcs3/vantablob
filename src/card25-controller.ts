@@ -328,6 +328,10 @@ export class Card25Controller {
   private animationFrameId: number | null = null;
   private resizeObserver: ResizeObserver;
 
+  // Gimbal-style time scaling
+  private gimbalSpeed: number = 1.0;
+  private timeAccumulator: number = 0;
+
   // Preset springs
   private springs = {
     baseScale: new Spring(BASE_PRESET.baseScale, 0.05, 0.8),
@@ -423,6 +427,10 @@ export class Card25Controller {
 
   setActive(active: boolean) {
     this.presenceSpring.setTarget(active ? 1 : 0);
+  }
+
+  setGimbalSpeed(speed: number) {
+    this.gimbalSpeed = speed;
   }
 
   async enableAudio() {
@@ -539,7 +547,9 @@ export class Card25Controller {
   private animate = () => {
     this.animationFrameId = requestAnimationFrame(this.animate);
 
-    const time = this.clock.getElapsedTime();
+    const dt = Math.min(this.clock.getDelta(), 0.033);
+    this.timeAccumulator += dt * this.gimbalSpeed;
+    const time = this.timeAccumulator;
 
     // Read audio pipes
     this.updateAudio();

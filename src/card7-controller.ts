@@ -363,6 +363,10 @@ export class Card7Controller {
   isDestroyed: boolean;
   handleResize: () => void;
 
+  // Gimbal-speed-style time scaling — multiplies dt for shader uTime.
+  gimbalSpeed: number = 1.0;
+  timeAccumulator: number = 0;
+
   // Audio + onset detection (continuous spectral-flux value — same approach as Card 6)
   audioContext: AudioContext | null = null;
   audioElement: HTMLAudioElement | null = null;
@@ -491,6 +495,10 @@ export class Card7Controller {
     this.energySpring.setTarget(THREE.MathUtils.clamp(level, 0.08, 1));
   }
 
+  setGimbalSpeed(speed: number) {
+    this.gimbalSpeed = speed;
+  }
+
   async enableAudio() {
     if (this.audioContext) return;
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -509,7 +517,7 @@ export class Card7Controller {
     this.snarePrev = new Uint8Array(this.snareAnalyser.frequencyBinCount);
 
     try {
-      this.audioElement = new Audio('/ms.mp3');
+      this.audioElement = new Audio('/songs/zoogaze.mp3');
       this.audioElement.crossOrigin = 'anonymous';
       this.audioElement.loop = true;
       this.source = this.audioContext.createMediaElementSource(this.audioElement);
@@ -621,7 +629,8 @@ export class Card7Controller {
     }
 
     const deltaSeconds = Math.min(this.clock.getDelta(), 0.033);
-    const elapsed = this.clock.elapsedTime;
+    this.timeAccumulator += deltaSeconds * this.gimbalSpeed;
+    const elapsed = this.timeAccumulator;
 
     this.updateAudio();
     this.material.uniforms.uOnset.value = this.onset;

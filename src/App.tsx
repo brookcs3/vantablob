@@ -23,10 +23,6 @@ import { Card19Controller } from './card19-controller';
 import { Card20Controller } from './card20-controller';
 import { Card21Controller } from './card21-controller';
 import { Card22Controller } from './card22-controller';
-import { Card23Controller } from './card23-controller';
-import { Card24Controller } from './card24-controller';
-import { Card25Controller } from './card25-controller';
-import { Card26Controller } from './card26-controller';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -1243,10 +1239,6 @@ const Card19Blob = makeCardBlob(Card19Controller);
 const Card20Blob = makeCardBlob(Card20Controller);
 const Card21Blob = makeCardBlob(Card21Controller);
 const Card22Blob = makeCardBlob(Card22Controller);
-const Card23Blob = makeCardBlob(Card23Controller);
-const Card24Blob = makeCardBlob(Card24Controller);
-const Card25Blob = makeCardBlob(Card25Controller);
-const Card26Blob = makeCardBlob(Card26Controller);
 
 export default function App() {
   const controllerRef = useRef<any>(null);
@@ -1256,8 +1248,66 @@ export default function App() {
   const [gimbalSpeed, setGimbalSpeed] = useState(1.0);
   const [useTimeline, setUseTimeline] = useState(false);
   
-  const [cardIndex, setCardIndex] = useState(0);
-  const TOTAL_CARDS = 26;
+  // ─── Visible carousel (16 audio cards) ───
+  // cardIndex 0–5 are kept in the codebase but hidden from the carousel
+  // (legacy / debug). Visible cycle starts at cardIndex 6 (zoogaze).
+  // Each visible card maps to a URL hash slug for shareable links.
+  const VISIBLE_START = 6;
+  const VISIBLE_CARDS = [
+    { slug: 'zoogaze',    title: 'zoogaze',    family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
+    { slug: 'knees',      title: 'knees',      family: 'Event Reactive',    motion: 'event flux + squiggle / split' },
+    { slug: 'charcoal',   title: 'charcoal',   family: 'Ferrofluid Direct', motion: 'audio → shader uniforms' },
+    { slug: 'echoplxjm',  title: 'echoplxjm',  family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
+    { slug: 'gotsumthin', title: 'gotsumthin', family: 'Event Reactive',    motion: 'event flux + squiggle / split' },
+    { slug: 'softtouch',  title: 'softtouch',  family: 'Ferrofluid Direct', motion: 'audio → shader uniforms' },
+    { slug: 'foyou',      title: 'foyou',      family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
+    { slug: 'ca',         title: 'ca',         family: 'Event Reactive',    motion: 'event flux + squiggle / split' },
+    { slug: 'elevated',   title: 'elevated',   family: 'Ferrofluid Direct', motion: 'audio → shader uniforms' },
+    { slug: 'echoplxjm2', title: 'echoplxjm2', family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
+    { slug: 'dq2',        title: 'dq2',        family: 'Event Reactive',    motion: 'event flux + squiggle / split' },
+    { slug: 'threed',     title: 'threed',     family: 'Ferrofluid Direct', motion: 'audio → shader uniforms' },
+    { slug: 'elevated2',  title: 'elevated2',  family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
+    { slug: 'untitled5',  title: 'untitled5',  family: 'Event Reactive',    motion: 'event flux + squiggle / split' },
+    { slug: 'mashup24',   title: 'mashup24',   family: 'Ferrofluid Direct', motion: 'audio → shader uniforms' },
+    { slug: 'mirror',     title: 'mirror',     family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
+  ];
+  const VISIBLE_END = VISIBLE_START + VISIBLE_CARDS.length - 1;
+  const TOTAL_CARDS = VISIBLE_START + VISIBLE_CARDS.length;
+
+  // Initial card from URL hash, falling back to zoogaze (the cycle start).
+  const [cardIndex, setCardIndex] = useState(() => {
+    if (typeof window === 'undefined') return VISIBLE_START;
+    const slug = window.location.hash.replace('#', '');
+    const i = VISIBLE_CARDS.findIndex(c => c.slug === slug);
+    return i >= 0 ? VISIBLE_START + i : VISIBLE_START;
+  });
+
+  // Sync URL hash whenever cardIndex changes (no page reload).
+  useEffect(() => {
+    if (cardIndex < VISIBLE_START) return;
+    const slug = VISIBLE_CARDS[cardIndex - VISIBLE_START]?.slug;
+    if (slug && typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `#${slug}`);
+    }
+  }, [cardIndex]);
+
+  // Honor back/forward & manual hash edits.
+  useEffect(() => {
+    const onHashChange = () => {
+      const slug = window.location.hash.replace('#', '');
+      const i = VISIBLE_CARDS.findIndex(c => c.slug === slug);
+      if (i >= 0) setCardIndex(VISIBLE_START + i);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const currentCard = cardIndex >= VISIBLE_START ? VISIBLE_CARDS[cardIndex - VISIBLE_START] : null;
+
+  const copyShareLink = () => {
+    if (typeof window === 'undefined') return;
+    navigator.clipboard.writeText(window.location.href).catch(() => {});
+  };
 
   useEffect(() => {
     if (controllerRef.current) {
@@ -1282,17 +1332,26 @@ export default function App() {
     }
   }, [useTimeline]);
 
+  // Arrow nav cycles within the visible range only (skips hidden cards 0–5).
+  const cycleNext = (prev: number) => {
+    if (prev < VISIBLE_START || prev >= VISIBLE_END) return VISIBLE_START;
+    return prev + 1;
+  };
+  const cyclePrev = (prev: number) => {
+    if (prev <= VISIBLE_START || prev > VISIBLE_END) return VISIBLE_END;
+    return prev - 1;
+  };
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') setCardIndex((prev) => (prev + 1) % TOTAL_CARDS);
-      if (e.key === 'ArrowLeft') setCardIndex((prev) => (prev - 1 + TOTAL_CARDS) % TOTAL_CARDS);
+      if (e.key === 'ArrowRight') setCardIndex(cycleNext);
+      if (e.key === 'ArrowLeft') setCardIndex(cyclePrev);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const nextCard = () => setCardIndex((prev) => (prev + 1) % TOTAL_CARDS);
-  const prevCard = () => setCardIndex((prev) => (prev - 1 + TOTAL_CARDS) % TOTAL_CARDS);
+  const nextCard = () => setCardIndex(cycleNext);
+  const prevCard = () => setCardIndex(cyclePrev);
 
   const handleCycleVariant = () => {
     if (!controllerRef.current) return;
@@ -1323,7 +1382,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#111111] text-white font-sans flex flex-col items-center justify-center p-8 overflow-hidden">
       <div className="w-full max-w-4xl flex flex-col gap-8 relative">
-        
+
+        <div className="text-center text-gray-400 text-sm leading-relaxed">
+          <p className="text-gray-300">a reel — and also, look, i can shaders</p>
+          <p className="text-xs text-gray-500 mt-1">each track gets its own URL · arrows or chevrons to cycle</p>
+        </div>
+
         {/* Carousel Container */}
         <div className="relative w-full flex items-center justify-center">
           <button 
@@ -1389,14 +1453,6 @@ export default function App() {
                   <Card21Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : cardIndex === 21 ? (
                   <Card22Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 22 ? (
-                  <Card23Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 23 ? (
-                  <Card24Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 24 ? (
-                  <Card25Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 25 ? (
-                  <Card26Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : (
                   <OldMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 )}
@@ -1410,10 +1466,6 @@ export default function App() {
           >
             <ChevronRight size={32} />
           </button>
-        </div>
-
-        <div className="text-center text-gray-500 text-sm font-medium tracking-widest uppercase">
-          Variant {cardIndex + 1} of {TOTAL_CARDS} (Use Arrow Keys)
         </div>
 
         {/* Controls */}
@@ -1465,7 +1517,7 @@ export default function App() {
               </button>
             )}
 
-            {cardIndex >= 4 && cardIndex <= 25 && (
+            {currentCard && (
               <button
                 onClick={() => {
                   if (controllerRef.current && controllerRef.current.enableAudio) {
@@ -1475,50 +1527,53 @@ export default function App() {
                 className="px-6 py-3 bg-fuchsia-600 text-white border border-fuchsia-500 rounded-full font-medium hover:bg-fuchsia-500 transition-colors shadow-[0_0_15px_rgba(192,38,211,0.5)] flex items-center gap-2"
               >
                 <Play size={18} />
-                Play {cardIndex === 4 ? 'ms.mp3' : cardIndex === 5 ? 'ms.mp3' : cardIndex === 6 ? 'ms.mp3' : cardIndex === 7 ? 'knees.mp3' : cardIndex === 8 ? 'charcoal.mp3' : cardIndex === 9 ? 'zoogaze.mp3' : cardIndex === 10 ? 'echoplxjm.mp3' : cardIndex === 11 ? 'gotsumthin.mp3' : cardIndex === 12 ? 'softtouch.mp3' : cardIndex === 13 ? 'foyou.mp3' : cardIndex === 14 ? 'ca.mp3' : cardIndex === 15 ? 'elevated.mp3' : cardIndex === 16 ? 'echoplxjm2.mp3' : cardIndex === 17 ? 'dq2.mp3' : cardIndex === 18 ? 'threed.mp3' : cardIndex === 19 ? 'elevated2.mp3' : cardIndex === 20 ? 'untitled5.mp3' : cardIndex === 21 ? 'mashup24.mp3' : cardIndex === 22 ? 'mirror.mp3' : 'ms.mp3'}
+                Play {currentCard.title}
+              </button>
+            )}
+            {currentCard && (
+              <button
+                onClick={copyShareLink}
+                className="px-6 py-3 border border-white/20 rounded-full font-medium hover:bg-white/10 transition-colors text-gray-300"
+                title="Copy link to this track"
+              >
+                Copy link
               </button>
             )}
           </div>
 
-          <div className={`w-full max-w-xs mx-auto mt-2 transition-opacity duration-300 ${cardIndex === 2 ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+          <div className={`w-full max-w-xs mx-auto mt-2 transition-opacity duration-300 ${cardIndex >= VISIBLE_START || cardIndex === 2 ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
             <div className="flex justify-between text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">
               <span>Gimbal Speed</span>
               <span>{gimbalSpeed.toFixed(1)}x</span>
             </div>
-            <input 
-              type="range" 
-              min="0.5" 
-              max="4.0" 
-              step="0.1" 
-              value={gimbalSpeed} 
+            <input
+              type="range"
+              min="0.5"
+              max="4.0"
+              step="0.1"
+              value={gimbalSpeed}
               onChange={(e) => setGimbalSpeed(parseFloat(e.target.value))}
-              disabled={cardIndex !== 2}
+              disabled={cardIndex < VISIBLE_START && cardIndex !== 2}
               className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
             />
           </div>
 
-          <dl className="flex gap-8 text-center">
-            <div>
-              <dt className="text-sm text-gray-500 mb-1">Preset</dt>
-              <dd className="font-medium text-gray-300">
-                {cardIndex === 0 
-                  ? MASS_PRESETS[presetIndex % MASS_PRESETS.length].name 
-                  : OLD_MASS_PRESETS[presetIndex % OLD_MASS_PRESETS.length].name}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-gray-500 mb-1">Family</dt>
-              <dd className="font-medium text-gray-300 capitalize">
-                {cardIndex === 0 ? 'Ferrofluid / Sludge' : cardIndex === 2 ? 'Aerotrim Gimbal' : cardIndex === 3 ? 'Historic Blob' : cardIndex === 4 ? 'Sonic Mass' : cardIndex === 5 ? 'Advanced Audio' : cardIndex === 6 ? 'Snare Flux' : cardIndex === 7 ? 'Event Reactive' : cardIndex === 8 ? 'Snare Flux' : cardIndex === 9 ? 'Event Reactive' : cardIndex === 10 ? 'Snare Flux' : cardIndex === 11 ? 'Event Reactive' : cardIndex === 12 ? 'Snare Flux' : cardIndex === 13 ? 'Event Reactive' : cardIndex === 14 ? 'Snare Flux' : cardIndex === 15 ? 'Event Reactive' : cardIndex === 16 ? 'Snare Flux' : cardIndex === 17 ? 'Event Reactive' : cardIndex === 18 ? 'Snare Flux' : cardIndex === 19 ? 'Event Reactive' : cardIndex === 20 ? 'Snare Flux' : cardIndex === 21 ? 'Event Reactive' : cardIndex === 22 ? 'Snare Flux' : cardIndex === 23 ? 'Ferrofluid Reactive (A)' : cardIndex === 24 ? 'Ferrofluid Reactive (B)' : cardIndex === 25 ? 'Ferrofluid Reactive (C)' : 'Magnetic Orbits'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-gray-500 mb-1">Motion</dt>
-              <dd className="font-medium text-gray-300">
-                {cardIndex === 0 ? 'magnetic pull + fluid noise' : cardIndex === 2 ? '3-axis gimbal + slooge' : cardIndex === 3 ? 'saw blade spin' : cardIndex === 4 ? 'audio reactive displacement' : cardIndex === 5 ? 'dual-mode DSP + timeline' : cardIndex === 6 ? 'dual-band flux + notKick gate' : cardIndex === 7 ? 'event flux + squiggle/split' : cardIndex === 8 ? 'dual-band flux + notKick gate' : cardIndex === 9 ? 'event flux + squiggle/split' : cardIndex === 10 ? 'dual-band flux + notKick gate' : cardIndex === 11 ? 'event flux + squiggle/split' : cardIndex === 12 ? 'dual-band flux + notKick gate' : cardIndex === 13 ? 'event flux + squiggle/split' : cardIndex === 14 ? 'dual-band flux + notKick gate' : cardIndex === 15 ? 'event flux + squiggle/split' : cardIndex === 16 ? 'dual-band flux + notKick gate' : cardIndex === 17 ? 'event flux + squiggle/split' : cardIndex === 18 ? 'dual-band flux + notKick gate' : cardIndex === 19 ? 'event flux + squiggle/split' : cardIndex === 20 ? 'dual-band flux + notKick gate' : cardIndex === 21 ? 'event flux + squiggle/split' : cardIndex === 22 ? 'dual-band flux + notKick gate' : cardIndex === 23 ? 'audio → preset springs (physics only)' : cardIndex === 24 ? 'audio → shader uniforms (direct)' : cardIndex === 25 ? 'hybrid: kick/onset springs + direct snare' : 'orbiting magnets + displacement'}
-              </dd>
-            </div>
-          </dl>
+          {currentCard && (
+            <dl className="flex gap-8 text-center">
+              <div>
+                <dt className="text-sm text-gray-500 mb-1">Track</dt>
+                <dd className="font-medium text-gray-300">{currentCard.title}</dd>
+              </div>
+              <div>
+                <dt className="text-sm text-gray-500 mb-1">Family</dt>
+                <dd className="font-medium text-gray-300">{currentCard.family}</dd>
+              </div>
+              <div>
+                <dt className="text-sm text-gray-500 mb-1">Motion</dt>
+                <dd className="font-medium text-gray-300">{currentCard.motion}</dd>
+              </div>
+            </dl>
+          )}
         </div>
       </div>
     </div>

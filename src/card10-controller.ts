@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 const DEFAULT_ENERGY = 0.18;
 const BASE_PRESET = {
-  name: "music-mass",
+  name: "default-mass",
   seed: 1,
   baseScale: 0.82,
   lobeCountBias: 4.8,
@@ -10,12 +10,9 @@ const BASE_PRESET = {
   driftSpeed: 0.62,
   agitationStrength: 0.2,
   directionalBias: 0.72,
-  backgroundColor: "#0a0a1a",
-  fillColor: "#050505"
+  backgroundColor: "#585500",
+  fillColor: "#010101"
 };
-
-// Envelope decay for all peak-hold event detectors (Card 7 shape).
-const ENV_DECAY = 0.85;
 
 class SpringValue {
   value: number;
@@ -50,213 +47,6 @@ class SpringValue {
   }
 }
 
-// Event-detector bank. Every public field is either a peak-hold envelope
-// (instant attack, slow decay) or an event-spike scalar. No level meters.
-class AudioAnalyzer {
-  context: AudioContext | null = null;
-  audioElement: HTMLAudioElement | null = null;
-  source: MediaElementAudioSourceNode | null = null;
-
-  // Primary analyser (smoothed) — used for full/bass/treble flux, pitch, similarity.
-  analyser: AnalyserNode | null = null;
-  dataArray: Uint8Array | null = null;
-
-  // Flux-dedicated analyser (unsmoothed) — sharper detection for bass/treble/snare/onset.
-  fluxAnalyser: AnalyserNode | null = null;
-  fluxData: Uint8Array | null = null;
-  fluxPrev: Uint8Array | null = null;
-
-  // --- Event envelopes (0..1, peak-hold with ENV_DECAY) ---
-  onset: number = 0;          // full-spectrum flux envelope
-  bassHit: number = 0;        // low-band flux envelope
-  trebleHit: number = 0;      // high-band flux envelope
-  snareHit: number = 0;       // dual-band flux × notKick envelope
-  similarityDrop: number = 0; // (1 - cosine similarity vs rolling avg), peak-hold
-
-  // --- Raw scalars (already event-shaped or ambient support) ---
-  flux: number = 0;           // raw full-spectrum flux, only feeds morphTime
-  pitchDelta: number = 0;     // HPS-based pitch-change, fires on slides
-
-  private history: Float32Array[] = [];
-  private prevPitchBin: number = 0;
-
-  async start() {
-    if (this.context) return;
-    this.context = new (window.AudioContext || (window as any).webkitAudioContext)();
-
-    // Smoothed analyser — used for similarity history and pitch tracking.
-    this.analyser = this.context.createAnalyser();
-    this.analyser.fftSize = 2048;
-    this.analyser.smoothingTimeConstant = 0.8;
-    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-
-    // Flux analyser — raw (smoothing=0) so deltas aren't blunted.
-    this.fluxAnalyser = this.context.createAnalyser();
-    this.fluxAnalyser.fftSize = 2048;
-    this.fluxAnalyser.smoothingTimeConstant = 0;
-    this.fluxData = new Uint8Array(this.fluxAnalyser.frequencyBinCount);
-    this.fluxPrev = new Uint8Array(this.fluxAnalyser.frequencyBinCount);
-
-    try {
-      this.audioElement = new Audio('/songs/zoogaze.mp3');
-      this.audioElement.crossOrigin = "anonymous";
-      this.audioElement.loop = true;
-
-      this.source = this.context.createMediaElementSource(this.audioElement);
-      this.source.connect(this.analyser);
-      this.source.connect(this.fluxAnalyser);
-      this.analyser.connect(this.context.destination);
-
-      await this.audioElement.play();
-    } catch (err) {
-      console.error("Audio playback failed", err);
-    }
-  }
-
-  update() {
-    this.updateFluxDetectors();
-    this.updatePitchAndSimilarity();
-  }
-
-  // Full-spectrum / bass / treble / snare flux envelopes (Card 7 pattern).
-  private updateFluxDetectors() {
-    if (!this.fluxAnalyser || !this.fluxData || !this.fluxPrev) return;
-    this.fluxAnalyser.getByteFrequencyData(this.fluxData);
-
-    // fftSize=2048 @ 44.1kHz → binΔ ≈ 21.53 Hz.
-    // Bands:
-    //   BASS:   bins 2..9      (~43–194 Hz)   — kick / sub / low body
-    //   TREBLE: bins 186..464  (~4–10 kHz)    — hats, cymbals, air
-    //   BODY   (snare shell):   8..18         (~172–387 Hz)
-    //   CRACK  (snare wire):    185..371      (~4–8 kHz)
-    //   LOW reject (kick gate): 0..6          (<150 Hz)
-    const BASS_LO = 2, BASS_HI = 10;
-    const TREBLE_LO = 186, TREBLE_HI = 464;
-    const BODY_LO = 8, BODY_HI = 19;
-    const CRACK_LO = 185, CRACK_HI = 372;
-    const LOW_HI = 7;
-    const EPS = 1e-6;
-
-    let fullFlux = 0;
-    let bassFlux = 0;
-    let trebleFlux = 0;
-    let bodyFlux = 0;
-    let crackFlux = 0;
-    let lowE = 0;
-    let totalE = 0;
-
-    const n = this.fluxData.length;
-    for (let i = 0; i < n; i++) {
-      const v = this.fluxData[i] / 255.0;
-      const p = this.fluxPrev[i] / 255.0;
-      const d = v - p;
-
-      totalE += v;
-      if (i < LOW_HI) lowE += v;
-
-      if (d > 0) {
-        fullFlux += d;
-        if (i >= BASS_LO && i < BASS_HI) bassFlux += d;
-        if (i >= TREBLE_LO && i < TREBLE_HI) trebleFlux += d;
-        if (i >= BODY_LO && i < BODY_HI) bodyFlux += d;
-        if (i >= CRACK_LO && i < CRACK_HI) crackFlux += d;
-      }
-    }
-    this.fluxPrev.set(this.fluxData);
-
-    // Normalize per-band. Constants tuned so a typical hit lands near 0.7–1.0.
-    const rawOnset = Math.min(fullFlux / 20.0, 1.0);
-    const rawBass = Math.min(bassFlux / 3.0, 1.0);
-    const rawTreble = Math.min(trebleFlux / 12.0, 1.0);
-    const bodyNorm = Math.min(bodyFlux / 4.0, 1.0);
-    const crackNorm = Math.min(crackFlux / 12.0, 1.0);
-    const notKick = 1 - Math.min(lowE / (totalE + EPS), 1);
-    const rawSnare = bodyNorm * crackNorm * notKick;
-
-    // Peak-hold envelopes: instant attack, ENV_DECAY exponential decay.
-    this.onset = rawOnset > this.onset ? rawOnset : this.onset * ENV_DECAY + rawOnset * (1 - ENV_DECAY);
-    this.bassHit = rawBass > this.bassHit ? rawBass : this.bassHit * ENV_DECAY + rawBass * (1 - ENV_DECAY);
-    this.trebleHit = rawTreble > this.trebleHit ? rawTreble : this.trebleHit * ENV_DECAY + rawTreble * (1 - ENV_DECAY);
-    this.snareHit = rawSnare > this.snareHit ? rawSnare : this.snareHit * ENV_DECAY + rawSnare * (1 - ENV_DECAY);
-
-    // Expose raw full flux for morphTime accumulation.
-    this.flux = fullFlux / (n * 1.0);
-  }
-
-  // HPS pitch tracking + rolling-average cosine similarity for section-change detection.
-  private updatePitchAndSimilarity() {
-    if (!this.analyser || !this.dataArray) return;
-    this.analyser.getByteFrequencyData(this.dataArray);
-
-    const binCount = this.dataArray.length;
-    const specLen = Math.min(512, binCount);
-    const currentSpectrum = new Float32Array(specLen);
-    for (let i = 0; i < specLen; i++) {
-      currentSpectrum[i] = this.dataArray[i];
-    }
-
-    // HPS pitch detection — fundamental search in ~43–1000 Hz.
-    let maxHPS = 0;
-    let peakBin = 1;
-    for (let i = 1; i < 24; i++) {
-      let hps = currentSpectrum[i] / 255.0;
-      if (i * 2 < specLen) hps *= currentSpectrum[i * 2] / 255.0;
-      if (i * 3 < specLen) hps *= currentSpectrum[i * 3] / 255.0;
-      if (i * 4 < specLen) hps *= currentSpectrum[i * 4] / 255.0;
-      if (i * 5 < specLen) hps *= currentSpectrum[i * 5] / 255.0;
-      if (hps > maxHPS) {
-        maxHPS = hps;
-        peakBin = i;
-      }
-    }
-    this.pitchDelta = Math.abs(peakBin - this.prevPitchBin);
-    this.prevPitchBin = peakBin;
-
-    // Rolling-average cosine similarity → similarity-drop envelope.
-    this.history.push(currentSpectrum);
-    if (this.history.length > 10) this.history.shift();
-
-    let similarity = 1.0;
-    if (this.history.length > 1) {
-      const avgSpectrum = new Float32Array(specLen);
-      for (const h of this.history) {
-        for (let i = 0; i < specLen; i++) avgSpectrum[i] += h[i];
-      }
-      let dot = 0;
-      let normA = 0;
-      let normB = 0;
-      for (let i = 0; i < specLen; i++) {
-        avgSpectrum[i] /= this.history.length;
-        dot += currentSpectrum[i] * avgSpectrum[i];
-        normA += currentSpectrum[i] ** 2;
-        normB += avgSpectrum[i] ** 2;
-      }
-      similarity = normA > 0 && normB > 0 ? dot / (Math.sqrt(normA) * Math.sqrt(normB)) : 1.0;
-    }
-
-    // Anything under 0.92 cosine similarity counts as a divergence event.
-    // Below that threshold we grow the raw value; above → zero. Peak-hold envelope.
-    const SIM_THRESH = 0.92;
-    const rawDrop = similarity < SIM_THRESH ? Math.min((SIM_THRESH - similarity) / 0.3, 1.0) : 0;
-    this.similarityDrop = rawDrop > this.similarityDrop
-      ? rawDrop
-      : this.similarityDrop * ENV_DECAY + rawDrop * (1 - ENV_DECAY);
-  }
-
-  stop() {
-    if (this.audioElement) {
-      this.audioElement.pause();
-      this.audioElement.src = "";
-      this.audioElement = null;
-    }
-    if (this.source) {
-      this.source.disconnect();
-    }
-    if (this.context) this.context.close();
-    this.context = null;
-  }
-}
-
 function createMassMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -274,20 +64,8 @@ function createMassMaterial() {
       uBlobColor: { value: new THREE.Color(BASE_PRESET.fillColor) },
       uVantablack: { value: 0.0 },
       uJarvis: { value: 0.0 },
-      // Event-driven uniforms (all peak-hold envelopes except pitchDelta).
       uOnset: { value: 0.0 },
-      uBassHit: { value: 0.0 },
-      uTrebleHit: { value: 0.0 },
-      uSnareHit: { value: 0.0 },
-      uPitchDelta: { value: 0.0 },
-      uMorphTime: { value: 0.0 },
-      uBend: { value: 0.0 },
-      uBendDir1: { value: new THREE.Vector3(0, 1, 0) },
-      uBendDir2: { value: new THREE.Vector3(1, 0, 0) },
-      uBendFreq: { value: 4.0 },
-      uSplit: { value: 0.0 },
-      uSplitAxis: { value: new THREE.Vector3(0, 1, 0) },
-      uSquiggleBlend: { value: 0.0 }
+      uSnare: { value: 0.0 }
     },
     vertexShader: `
       varying vec3 vWorldNormal;
@@ -304,27 +82,32 @@ function createMassMaterial() {
       uniform float uEdgeRoughness;
       uniform float uDriftSpeed;
       uniform float uAgitationStrength;
-
       uniform float uOnset;
-      uniform float uBassHit;
-      uniform float uTrebleHit;
-      uniform float uSnareHit;
-      uniform float uPitchDelta;
-      uniform float uMorphTime;
-      uniform float uBend;
-      uniform vec3 uBendDir1;
-      uniform vec3 uBendDir2;
-      uniform float uBendFreq;
-      uniform float uSplit;
-      uniform vec3 uSplitAxis;
-      uniform float uSquiggleBlend;
+      uniform float uSnare;
 
-      vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-      float mod289(float x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-      vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-      vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
-      float permute(float x) { return mod289(((x * 34.0) + 1.0) * x); }
-      vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+      vec4 mod289(vec4 x) {
+        return x - floor(x * (1.0 / 289.0)) * 289.0;
+      }
+
+      float mod289(float x) {
+        return x - floor(x * (1.0 / 289.0)) * 289.0;
+      }
+
+      vec3 mod289(vec3 x) {
+        return x - floor(x * (1.0 / 289.0)) * 289.0;
+      }
+
+      vec4 permute(vec4 x) {
+        return mod289(((x * 34.0) + 1.0) * x);
+      }
+
+      float permute(float x) {
+        return mod289(((x * 34.0) + 1.0) * x);
+      }
+
+      vec4 taylorInvSqrt(vec4 r) {
+        return 1.79284291400159 - 0.85373472095314 * r;
+      }
 
       float snoise(vec3 v) {
         const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);
@@ -343,7 +126,15 @@ function createMassMaterial() {
         vec3 x3 = x0 - D.yyy;
 
         i = mod289(i);
-        vec4 p = permute(permute(permute(i.z + vec4(0.0, i1.z, i2.z, 1.0)) + i.y + vec4(0.0, i1.y, i2.y, 1.0)) + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+        vec4 p = permute(
+          permute(
+            permute(i.z + vec4(0.0, i1.z, i2.z, 1.0)) +
+              i.y +
+              vec4(0.0, i1.y, i2.y, 1.0)
+          ) +
+            i.x +
+            vec4(0.0, i1.x, i2.x, 1.0)
+        );
 
         float n_ = 0.142857142857;
         vec3 ns = n_ * D.wyz - D.xzx;
@@ -371,118 +162,97 @@ function createMassMaterial() {
         vec3 p2 = vec3(a1.xy, h.z);
         vec3 p3 = vec3(a1.zw, h.w);
 
-        vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
-        p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+        vec4 norm = taylorInvSqrt(
+          vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3))
+        );
+        p0 *= norm.x;
+        p1 *= norm.y;
+        p2 *= norm.z;
+        p3 *= norm.w;
 
-        vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
+        vec4 m = max(
+          0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)),
+          0.0
+        );
         m = m * m;
 
-        return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+        return 42.0 *
+          dot(
+            m * m,
+            vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3))
+          );
       }
 
       vec3 getDisplacedPosition(vec3 baseNormal, float t) {
-        // Organic warp — unchanged ambient layer.
+        // Warp the normal slightly to make the pulls organic and asymmetrical
         vec3 warpedNormal = normalize(baseNormal + snoise(baseNormal * 2.5 + t * 0.5) * 0.25);
-
-        // 5 orbiting attractor pulls — ambient motion, independent of audio.
+        
+        // 5 Orbiting "Magnets" that pull the fluid outward
         vec3 m1 = normalize(vec3(sin(t * 0.8 + uSeed), cos(t * 0.9 + uSeed), sin(t * 0.7)));
         vec3 m2 = normalize(vec3(cos(t * 1.1), sin(t * 0.6 + uSeed), -cos(t * 0.8)));
         vec3 m3 = normalize(vec3(-sin(t * 0.7), -cos(t * 1.2), sin(t * 1.1 + uSeed)));
         vec3 m4 = normalize(vec3(cos(t * 0.9), -sin(t * 0.8), -cos(t * 1.3)));
         vec3 m5 = normalize(vec3(sin(t * 1.3), cos(t * 0.5), -sin(t * 0.9)));
-
+        
+        // Calculate influence of each magnet (0 to 1)
         float i1 = max(0.0, dot(warpedNormal, m1));
         float i2 = max(0.0, dot(warpedNormal, m2));
         float i3 = max(0.0, dot(warpedNormal, m3));
         float i4 = max(0.0, dot(warpedNormal, m4));
         float i5 = max(0.0, dot(warpedNormal, m5));
-
+        
+        // Sharpen the influence to create distinct lobes/spikes
         float sharpness = uLobeCountBias;
         i1 = pow(i1, sharpness);
         i2 = pow(i2, sharpness);
         i3 = pow(i3, sharpness);
         i4 = pow(i4, sharpness);
         i5 = pow(i5, sharpness);
-
+        
         float pull = i1 + i2 + i3 + i4 + i5;
-
-        // Fluid-noise baseline — advances by uMorphTime (monotonic, never reverses).
-        float fluidNoise = snoise(warpedNormal * 1.5 - uMorphTime) * 0.5 + 0.5;
-
+        
+        // Add some general fluid noise to the surface
+        float fluidNoise = snoise(baseNormal * 1.5 - t * 0.4) * 0.5 + 0.5;
+        
+        // Base radius of the sphere
         float r = 0.68;
-
-        // Ambient displacement — driven by energy only, NOT by continuous loudness.
+        
+        // Apply the magnet pulls and fluid noise
         r += pull * (uAgitationStrength + uEnergy * 0.2);
         r += fluidNoise * uEdgeRoughness;
 
-        // --- EVENT-DRIVEN DISPLACEMENT (all envelopes self-silence between events) ---
+        // Onset reactivity — same displacement style as Card 6's uCustom
+        float onsetNoise = snoise(baseNormal * 4.0 + t * 5.0);
+        r += onsetNoise * uOnset * 0.3;
 
-        // Bass throb — low-band flux envelope drives a deep expansion.
-        float bassThrob = uBassHit * 0.35 * (1.0 + snoise(warpedNormal * 2.0 - t * 2.0));
-        r += bassThrob;
+        // Snare reactivity — placeholder (subtle swell). Sub-animation to be
+        // defined later; shader threshold lives here.
+        r += uSnare * 0.15;
 
-        // Treble spikes — high-band flux envelope drives jagged high-freq ripples.
-        float trebleSpikes = uTrebleHit * 0.18 * snoise(warpedNormal * 15.0 + t * 10.0);
-        r += trebleSpikes;
-
-        // Snare goop — dual-band flux × notKick drives mid-freq protrusions.
-        float snareGoop = uSnareHit * 0.45 * pow(max(0.0, snoise(warpedNormal * 4.0 - t * 8.0)), 2.0);
-        r += snareGoop;
-
-        // Full-spectrum onset — overall expansion bloom.
-        r += uOnset * 0.12;
-
-        // Pointer magnet (user input).
-        float magnetStrength = 0.35 + uPresence * 0.8;
-        float pointerPush = dot(baseNormal.xy, uPointer) * magnetStrength;
+        // Pointer interaction (pushes the fluid away)
+        float pointerPush = dot(baseNormal.xy, uPointer) * 0.15 * (0.5 + uPresence);
         r += pointerPush;
-
-        // Split / mitosis — triggered by similarity-drop events.
-        float splitDist = dot(baseNormal, uSplitAxis);
-        float isPositiveSide = step(0.0, splitDist) * 2.0 - 1.0;
-        float pinch = smoothstep(0.0, 0.25, abs(splitDist));
-        r *= mix(1.0, pinch, uSplit);
-
-        vec3 pos = baseNormal * r * uBaseScale;
-
-        pos += uSplitAxis * isPositiveSide * uSplit * 1.8;
-
-        // PitchDelta Y-stretch — already event-shaped (fires on slides, silent on held notes).
-        pos.y *= 1.0 + clamp(uPitchDelta * 0.035, 0.0, 0.6);
-
-        // Bend — triggered by full-spectrum flux spikes.
-        float bPhase = dot(baseNormal, uBendDir1) * uBendFreq + t * 8.0;
-        pos += uBendDir2 * sin(bPhase) * uBend * 0.6;
-        pos += uBendDir1 * (abs(cos(bPhase * 0.5)) - 0.5) * uBend * 1.2;
-
-        // Squiggle — decoration layer, clock-driven every 20–60s. Same shader path as before.
-        float sBlend = clamp(uSquiggleBlend, 0.0, 1.5);
-        if (sBlend > 0.0) {
-          // High frequency wiggle
-          pos.x += sin(baseNormal.y * 8.0 + t * 5.0) * 0.4 * sBlend;
-          pos.z += cos(baseNormal.y * 7.0 + t * 4.5) * 0.4 * sBlend;
-          // Low frequency bend (loop/curve)
-          float sbend = sin(baseNormal.y * 3.14159);
-          pos.x += sbend * 0.6 * cos(t * 3.0) * sBlend;
-          pos.y += sbend * 0.6 * sin(t * 3.0) * sBlend;
-        }
-
-        return pos;
+        
+        // Apply base scale
+        return baseNormal * r * uBaseScale;
       }
 
       void main() {
         float time = uTime * uDriftSpeed;
 
+        // Get the displaced position for the current vertex
         vec3 pos = getDisplacedPosition(normal, time);
 
+        // Approximate the new normal by sampling nearby points
+        // This is CRITICAL for making the lighting look like a real 3D fluid
         float offset = 0.01;
         vec3 tangent = normalize(cross(normal, vec3(0.0, 1.0, 0.0)));
         if (length(tangent) < 0.1) tangent = normalize(cross(normal, vec3(1.0, 0.0, 0.0)));
         vec3 bitangent = normalize(cross(normal, tangent));
-
+        
         vec3 posT = getDisplacedPosition(normalize(normal + tangent * offset), time);
         vec3 posB = getDisplacedPosition(normalize(normal + bitangent * offset), time);
-
+        
         vec3 newNormal = normalize(cross(posT - pos, posB - pos));
 
         vec4 worldPosition = modelMatrix * vec4(pos, 1.0);
@@ -506,50 +276,64 @@ function createMassMaterial() {
       varying vec3 vViewPosition;
       varying vec3 vWorldPosition;
 
+      // Oil Slick Palette
       vec3 oilPalette(float t) {
-        return vec3(0.5) + vec3(0.5) * cos(6.28318 * (vec3(1.0, 0.7, 0.4) * t + vec3(0.1, 0.2, 0.3)));
+          return vec3(0.5) + vec3(0.5) * cos(6.28318 * (vec3(1.0, 0.7, 0.4) * t + vec3(0.1, 0.2, 0.3)));
       }
 
       void main() {
         vec3 normal = normalize(vWorldNormal);
         vec3 viewDirection = normalize(vViewPosition);
 
+        // Base color (very dark)
         vec3 baseColor = uBlobColor;
 
+        // Key light (warm, from top right)
         vec3 lightDir1 = normalize(vec3(1.0, 1.5, 1.0));
         float diff1 = max(dot(normal, lightDir1), 0.0);
         vec3 diffuse1 = diff1 * vec3(0.15, 0.14, 0.13);
 
+        // Fill light (cool, from bottom left)
         vec3 lightDir2 = normalize(vec3(-1.0, -0.5, 0.5));
         float diff2 = max(dot(normal, lightDir2), 0.0);
         vec3 diffuse2 = diff2 * vec3(0.05, 0.06, 0.08);
 
+        // Rim light (sharp, catches the edges of the goop)
         float rimPower = 1.0 - max(dot(normal, viewDirection), 0.0);
         float rim = smoothstep(0.6, 1.0, rimPower);
         vec3 rimColor = rim * vec3(0.15, 0.15, 0.18);
 
+        // Specular highlight (makes it look wet/glossy)
         vec3 halfVector1 = normalize(lightDir1 + viewDirection);
         float spec1 = pow(max(dot(normal, halfVector1), 0.0), 48.0);
         vec3 specular1 = spec1 * vec3(0.3, 0.3, 0.3);
 
         vec3 finalColor = baseColor + diffuse1 + diffuse2 + rimColor + specular1;
-
+        
+        // Vantablack override: pure black silhouette
         finalColor = mix(finalColor, vec3(0.0), uVantablack);
 
+        // Quad Damage / Oil Slick Effect
         if (uJarvis > 0.5) {
-          vec3 quadBlue = vec3(0.302, 0.765, 1.0);
-          float fresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), 3.0);
-          vec3 jarvisRim = quadBlue * fresnel * 1.5;
-
-          float oilFresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), 1.3);
-          vec3 oil = oilPalette(oilFresnel + uTime * 0.2) * 0.8;
-
-          vec3 lightDir = normalize(vec3(0.0, 2.0, 2.0) - vWorldPosition);
-          float diff = max(dot(normal, lightDir), 0.0);
-          float pointFlicker = 1.0 + fract(sin(uTime * 43.2178) * 4378.5453) * 0.15;
-          vec3 lightContrib = quadBlue * diff * 0.4 * pointFlicker;
-
-          finalColor += (oil * oilFresnel) + jarvisRim + lightContrib;
+            // Quad Damage Blue
+            vec3 quadBlue = vec3(0.302, 0.765, 1.0);
+            
+            // Fresnel rim glow (Quad Damage style)
+            float fresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), 3.0);
+            vec3 rimColor = quadBlue * fresnel * 1.5;
+            
+            // Oil slick iridescence based on viewing angle and time
+            float oilFresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), 1.3);
+            vec3 oil = oilPalette(oilFresnel + uTime * 0.2) * 0.8;
+            
+            // Point light with flicker
+            vec3 lightDir = normalize(vec3(0.0, 2.0, 2.0) - vWorldPosition);
+            float diff = max(dot(normal, lightDir), 0.0);
+            float pointFlicker = 1.0 + fract(sin(uTime * 43.2178) * 4378.5453) * 0.15;
+            vec3 lightContrib = quadBlue * diff * 0.4 * pointFlicker;
+            
+            // Combine: Oil slick base + Quad Damage rim + Flickering light
+            finalColor += (oil * oilFresnel) + rimColor + lightContrib;
         }
 
         gl_FragColor = vec4(finalColor, 1.0);
@@ -574,52 +358,36 @@ export class Card10Controller {
   energySpring: SpringValue;
   pointerXSpring: SpringValue;
   pointerYSpring: SpringValue;
-  bendSpring: SpringValue;
-  splitSpring: SpringValue;
-  squiggleSpring: SpringValue;
   clock: THREE.Clock;
   frameId: number;
   isDestroyed: boolean;
   handleResize: () => void;
-  audioAnalyzer: AudioAnalyzer;
-  shaderTime: number = 0;
-  morphTime: number = 0;
 
-  // Event-hygiene cooldowns — prevent re-triggering on the decay tail of the
-  // previous event. Not a clock rotator: event triggers still require a real
-  // audio event above threshold.
-  private lastBendAt: number = -10;
-  private lastSplitAt: number = -10;
-  private readonly BEND_COOLDOWN = 0.8;
-  private readonly SPLIT_COOLDOWN = 1.2;
-  private readonly BEND_THRESHOLD = 0.55;
-  private readonly SPLIT_THRESHOLD = 0.25;
+  // Gimbal-speed-style time scaling — multiplies dt for shader uTime.
+  gimbalSpeed: number = 1.0;
+  timeAccumulator: number = 0;
 
-  // "active until" timestamps — any trigger (event or choreo) sets these.
-  // Spring targets are 1.0 while now < activeUntil, else 0. Lets event-reactive
-  // and clock-driven paths coexist without overwriting each other frame-to-frame.
-  private bendActiveUntil: number = 0;
-  private splitActiveUntil: number = 0;
-  private squiggleActiveUntil: number = 0;
-  private readonly BEND_HOLD = 0.4;
-  private readonly SPLIT_HOLD = 1.6;
-  private readonly SQUIGGLE_HOLD = 2.5;
+  // Audio + onset detection (continuous spectral-flux value — same approach as Card 6)
+  audioContext: AudioContext | null = null;
+  audioElement: HTMLAudioElement | null = null;
+  source: MediaElementAudioSourceNode | null = null;
+  analyser: AnalyserNode | null = null;
+  dataArray: Uint8Array | null = null;
+  prevDataArray: Uint8Array | null = null;
+  onset: number = 0; // 0..1, spikes on transients, decays smoothly
 
-  // Choreography layer — decoration, not reactivity. Clock-driven.
-  // Every CHOREO_MIN..CHOREO_MAX seconds, pick squiggle or split and bloom it.
-  // Runs in parallel with event-reactive behavior; the blob still responds to
-  // onsets / bass / snare / treble the whole time.
-  private nextChoreoAt: number = 0;
-  private choreoEnabled: boolean = true;
-  private readonly CHOREO_MIN = 20;
-  private readonly CHOREO_MAX = 60;
+  // Snare detection — separate analyser at smoothingTimeConstant=0 for sharper flux.
+  // Dual-band flux (180–400 Hz body × 4–8 kHz crack) × notKick gate.
+  snareAnalyser: AnalyserNode | null = null;
+  snareData: Uint8Array | null = null;
+  snarePrev: Uint8Array | null = null;
+  snare: number = 0; // 0..1, peak-hold with decay, same envelope as onset
 
-  // Squiggle is on continuously, but takes a 10s break every 30–45s.
-  private squiggleBreakUntil: number = 0;
-  private nextSquiggleBreakAt: number = 30 + Math.random() * 15;
-  private readonly SQUIGGLE_BREAK_LEN = 10;
-  private readonly SQUIGGLE_BREAK_MIN = 30;
-  private readonly SQUIGGLE_BREAK_MAX = 45;
+  // Base RGB of the card background, parsed from preset.backgroundColor.
+  // Per-frame we lift each channel by `snare * SNARE_BG_LIFT` to pulse on hits.
+  bgBaseR: number = 17;
+  bgBaseG: number = 17;
+  bgBaseB: number = 17;
 
   constructor(container: HTMLElement, options: any = {}) {
     this.container = container;
@@ -631,13 +399,13 @@ export class Card10Controller {
       powerPreference: "high-performance"
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(this.preset.backgroundColor, 1);
-
+    this.renderer.setClearColor(this.preset.backgroundColor, 0);
+    
     this.renderer.domElement.style.width = '100%';
     this.renderer.domElement.style.height = '100%';
     this.renderer.domElement.style.display = 'block';
     this.renderer.domElement.style.objectFit = 'contain';
-
+    
     this.container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
@@ -648,7 +416,7 @@ export class Card10Controller {
     this.scene.add(this.massGroup);
 
     this.material = createMassMaterial();
-    this.geometry = new THREE.IcosahedronGeometry(0.68, 128);
+    this.geometry = new THREE.IcosahedronGeometry(0.68, 64);
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.massGroup.add(this.mesh);
 
@@ -656,21 +424,10 @@ export class Card10Controller {
     this.energySpring = new SpringValue(DEFAULT_ENERGY, { stiffness: 34, damping: 6.4 });
     this.pointerXSpring = new SpringValue(0, { stiffness: 20, damping: 7.8 });
     this.pointerYSpring = new SpringValue(0, { stiffness: 20, damping: 7.8 });
-    // Bend: springs up fast on trigger, decays naturally (target returns to 0 after hold).
-    this.bendSpring = new SpringValue(0, { stiffness: 18, damping: 5 });
-    // Split: slower buildup, slower release for discrete moment.
-    this.splitSpring = new SpringValue(0, { stiffness: 12, damping: 4 });
-    // Squiggle: matches old pre-rewrite feel.
-    this.squiggleSpring = new SpringValue(0, { stiffness: 10, damping: 5 });
-
-    // First choreography event falls somewhere in the first window.
-    this.nextChoreoAt = this.CHOREO_MIN + Math.random() * (this.CHOREO_MAX - this.CHOREO_MIN);
 
     this.clock = new THREE.Clock();
     this.frameId = 0;
     this.isDestroyed = false;
-
-    this.audioAnalyzer = new AudioAnalyzer();
 
     this.setPreset(this.preset);
     this.resize();
@@ -680,10 +437,6 @@ export class Card10Controller {
 
     this.animate = this.animate.bind(this);
     this.frameId = window.requestAnimationFrame(this.animate);
-  }
-
-  async enableAudio() {
-    await this.audioAnalyzer.start();
   }
 
   setActive(isActive: boolean) {
@@ -713,9 +466,18 @@ export class Card10Controller {
     this.material.uniforms.uAgitationStrength.value = this.preset.agitationStrength;
     this.material.uniforms.uDirectionalBias.value = this.preset.directionalBias;
     this.material.uniforms.uBlobColor.value.set(this.preset.fillColor);
+    
+    this.renderer.setClearColor(this.preset.backgroundColor, 0);
 
-    this.renderer.setClearColor(this.preset.backgroundColor, 1);
+    // Parse #RRGGBB into cached RGB ints (fallback to dark grey if malformed)
+    const hex = (this.preset.backgroundColor || '#111111').replace('#', '');
+    if (hex.length === 6) {
+      this.bgBaseR = parseInt(hex.slice(0, 2), 16);
+      this.bgBaseG = parseInt(hex.slice(2, 4), 16);
+      this.bgBaseB = parseInt(hex.slice(4, 6), 16);
+    }
 
+    // Update container background color if we want it to match
     if (this.container.parentElement) {
       this.container.parentElement.style.backgroundColor = this.preset.backgroundColor;
     }
@@ -731,6 +493,100 @@ export class Card10Controller {
 
   setEnergy(level: number) {
     this.energySpring.setTarget(THREE.MathUtils.clamp(level, 0.08, 1));
+  }
+
+  setGimbalSpeed(speed: number) {
+    this.gimbalSpeed = speed;
+  }
+
+  async enableAudio() {
+    if (this.audioContext) return;
+    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    // Onset analyser — preserved exactly as before (default 0.8 smoothing)
+    this.analyser = this.audioContext.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.smoothingTimeConstant = 0.8;
+    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+    this.prevDataArray = new Uint8Array(this.analyser.frequencyBinCount);
+
+    // Snare analyser — smoothingTimeConstant=0 so flux isn't blunted
+    this.snareAnalyser = this.audioContext.createAnalyser();
+    this.snareAnalyser.fftSize = 2048;
+    this.snareAnalyser.smoothingTimeConstant = 0;
+    this.snareData = new Uint8Array(this.snareAnalyser.frequencyBinCount);
+    this.snarePrev = new Uint8Array(this.snareAnalyser.frequencyBinCount);
+
+    try {
+      this.audioElement = new Audio('/songs/echoplxjm.mp3');
+      this.audioElement.crossOrigin = 'anonymous';
+      this.audioElement.loop = true;
+      this.source = this.audioContext.createMediaElementSource(this.audioElement);
+      this.source.connect(this.analyser);
+      this.source.connect(this.snareAnalyser); // analyser-only tap, no routing to destination
+      this.analyser.connect(this.audioContext.destination);
+      await this.audioElement.play();
+      console.log('[Card7] audio started');
+    } catch (err) {
+      console.error('Card7 audio playback failed', err);
+    }
+  }
+
+  // Continuous spectral-flux onset value (Card 6's approach, exactly).
+  // this.onset spikes fast on transients, decays smoothly — no triggers, no cooldowns.
+  updateAudio() {
+    if (!this.analyser || !this.dataArray || !this.prevDataArray) return;
+
+    this.analyser.getByteFrequencyData(this.dataArray);
+
+    let flux = 0;
+    for (let i = 0; i < this.dataArray.length; i++) {
+      const val = this.dataArray[i] / 255.0;
+      const prev = this.prevDataArray[i] / 255.0;
+      if (val > prev) flux += (val - prev);
+    }
+    this.prevDataArray.set(this.dataArray);
+
+    const rawOnset = Math.min(flux / 20.0, 1.0);
+    if (rawOnset > this.onset) this.onset = rawOnset;
+    else this.onset = this.onset * 0.85 + rawOnset * 0.15;
+
+    // --- Snare: dual-band flux × notKick gate (Approach 3) ---
+    // Bins for fftSize=2048 @ 44.1kHz (binΔ ≈ 21.53 Hz):
+    //   LOW reject 0–6   (<150 Hz)   — kick territory
+    //   BODY       8–18  (172–409 Hz) — snare shell fundamental
+    //   CRACK      185–371 (3983–7988 Hz) — snare wire noise
+    if (this.snareAnalyser && this.snareData && this.snarePrev) {
+      this.snareAnalyser.getByteFrequencyData(this.snareData);
+
+      const LOW_HI = 7;
+      const BODY_LO = 8, BODY_HI = 19;
+      const CRACK_LO = 185, CRACK_HI = 372;
+      const EPS = 1e-6;
+
+      let bodyFlux = 0, crackFlux = 0, lowE = 0, totalE = 0;
+      for (let i = 0; i < this.snareData.length; i++) {
+        const v = this.snareData[i] / 255.0;
+        totalE += v;
+        if (i < LOW_HI) lowE += v;
+        if (i >= BODY_LO && i < BODY_HI) {
+          const d = v - this.snarePrev[i] / 255.0;
+          if (d > 0) bodyFlux += d;
+        }
+        if (i >= CRACK_LO && i < CRACK_HI) {
+          const d = v - this.snarePrev[i] / 255.0;
+          if (d > 0) crackFlux += d;
+        }
+      }
+      this.snarePrev.set(this.snareData);
+
+      const bodyNorm = Math.min(bodyFlux / 4.0, 1.0);
+      const crackNorm = Math.min(crackFlux / 12.0, 1.0);
+      const notKick = 1 - Math.min(lowE / (totalE + EPS), 1);
+      const rawSnare = bodyNorm * crackNorm * notKick;
+
+      if (rawSnare > this.snare) this.snare = rawSnare;
+      else this.snare = this.snare * 0.85 + rawSnare * 0.15;
+    }
   }
 
   resize(width?: number, height?: number) {
@@ -753,11 +609,18 @@ export class Card10Controller {
     this.isDestroyed = true;
     window.cancelAnimationFrame(this.frameId);
     window.removeEventListener("resize", this.handleResize);
-    this.audioAnalyzer.stop();
     this.geometry.dispose();
     this.material.dispose();
     this.renderer.dispose();
     this.container.replaceChildren();
+
+    if (this.audioElement) {
+      this.audioElement.pause();
+      this.audioElement.src = '';
+    }
+    if (this.audioContext) {
+      this.audioContext.close();
+    }
   }
 
   animate() {
@@ -766,95 +629,34 @@ export class Card10Controller {
     }
 
     const deltaSeconds = Math.min(this.clock.getDelta(), 0.033);
+    this.timeAccumulator += deltaSeconds * this.gimbalSpeed;
+    const elapsed = this.timeAccumulator;
 
-    // Detector bank first — everything downstream reads these envelopes.
-    this.audioAnalyzer.update();
+    this.updateAudio();
+    this.material.uniforms.uOnset.value = this.onset;
+    this.material.uniforms.uSnare.value = this.snare;
 
-    // Monotonic morph-time (never reverses, modulated by raw flux).
-    this.morphTime += deltaSeconds * (0.3 + this.audioAnalyzer.flux * 1.0);
-    this.shaderTime += deltaSeconds;
-
-    const now = this.shaderTime;
-
-    // --- Event triggers (reactive layer) ---
-    // Bend: full-spectrum flux spike → discrete bloom.
-    if (
-      this.audioAnalyzer.onset > this.BEND_THRESHOLD &&
-      this.bendSpring.value < 0.15 &&
-      now - this.lastBendAt > this.BEND_COOLDOWN
-    ) {
-      const d1 = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-      const d2 = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-      this.material.uniforms.uBendDir1.value.copy(d1);
-      this.material.uniforms.uBendDir2.value.copy(d2);
-      this.material.uniforms.uBendFreq.value = 2.0 + Math.random() * 6.0;
-      this.bendActiveUntil = now + this.BEND_HOLD;
-      this.lastBendAt = now;
+    // Snare → slight lift on card background color (subtle ambient pulse)
+    if (this.container.parentElement) {
+      const SNARE_BG_LIFT = 25; // max added to each channel on a full-intensity snare
+      const lift = this.snare * SNARE_BG_LIFT;
+      const r = Math.min(255, Math.round(this.bgBaseR + lift));
+      const g = Math.min(255, Math.round(this.bgBaseG + lift));
+      const b = Math.min(255, Math.round(this.bgBaseB + lift));
+      this.container.parentElement.style.backgroundColor = `rgb(${r},${g},${b})`;
     }
-
-    // Split: similarity-drop event (section change / cut).
-    if (
-      this.audioAnalyzer.similarityDrop > this.SPLIT_THRESHOLD &&
-      this.splitSpring.value < 0.1 &&
-      now - this.lastSplitAt > this.SPLIT_COOLDOWN
-    ) {
-      const axis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-      this.material.uniforms.uSplitAxis.value.copy(axis);
-      this.splitActiveUntil = now + this.SPLIT_HOLD;
-      this.lastSplitAt = now;
-    }
-
-    // --- Choreography layer (decoration, clock-driven) ---
-    // Every 20–60s, pick squiggle or split at random and bloom it. Coexists
-    // with event-reactive behavior; the blob keeps responding to onsets.
-    if (now >= this.nextChoreoAt) {
-      // Choreo only handles split now (squiggle has its own always-on-with-breaks cycle).
-      const axis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-      this.material.uniforms.uSplitAxis.value.copy(axis);
-      this.splitActiveUntil = now + this.SPLIT_HOLD;
-      this.nextChoreoAt = now + this.CHOREO_MIN + Math.random() * (this.CHOREO_MAX - this.CHOREO_MIN);
-    }
-
-    // Squiggle: always on, except for a 10s break every 30–45s.
-    if (now >= this.nextSquiggleBreakAt && now >= this.squiggleBreakUntil) {
-      this.squiggleBreakUntil = now + this.SQUIGGLE_BREAK_LEN;
-      this.nextSquiggleBreakAt =
-        this.squiggleBreakUntil +
-        this.SQUIGGLE_BREAK_MIN +
-        Math.random() * (this.SQUIGGLE_BREAK_MAX - this.SQUIGGLE_BREAK_MIN);
-    }
-
-    // Spring targets from activeUntil windows (event + choreo both feed these).
-    this.bendSpring.setTarget(now < this.bendActiveUntil ? 1.0 : 0);
-    this.splitSpring.setTarget(now < this.splitActiveUntil ? 1.0 : 0);
-    this.squiggleSpring.setTarget(now >= this.squiggleBreakUntil ? 1.0 : 0);
 
     const active = this.activeSpring.update(deltaSeconds);
     const energy = this.energySpring.update(deltaSeconds);
     const pointerX = this.pointerXSpring.update(deltaSeconds);
     const pointerY = this.pointerYSpring.update(deltaSeconds);
-    const bendBlend = this.bendSpring.update(deltaSeconds);
-    const splitBlend = this.splitSpring.update(deltaSeconds);
-    const squiggleBlend = this.squiggleSpring.update(deltaSeconds);
 
     this.pointer.set(pointerX, pointerY);
 
-    // Uniform writes — all audio-reactive uniforms are fed from peak-hold envelopes.
-    const u = this.material.uniforms;
-    u.uTime.value = this.shaderTime;
-    u.uEnergy.value = energy;
-    u.uPresence.value = active;
-    u.uPointer.value.copy(this.pointer);
-    u.uOnset.value = this.audioAnalyzer.onset;
-    console.log('onset', this.audioAnalyzer.onset);
-    u.uBassHit.value = this.audioAnalyzer.bassHit;
-    u.uTrebleHit.value = 0; // muted for vibration diagnosis
-    u.uSnareHit.value = this.audioAnalyzer.snareHit;
-    u.uPitchDelta.value = this.audioAnalyzer.pitchDelta;
-    u.uMorphTime.value = this.morphTime;
-    u.uBend.value = bendBlend;
-    u.uSplit.value = splitBlend;
-    u.uSquiggleBlend.value = squiggleBlend;
+    this.material.uniforms.uTime.value = elapsed;
+    this.material.uniforms.uEnergy.value = energy;
+    this.material.uniforms.uPresence.value = active;
+    this.material.uniforms.uPointer.value.copy(this.pointer);
 
     this.massGroup.rotation.y = pointerX * 0.18 + active * 0.05;
     this.massGroup.rotation.x = pointerY * 0.08 - 0.08 - active * 0.02;
