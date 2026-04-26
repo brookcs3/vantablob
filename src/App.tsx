@@ -1383,10 +1383,7 @@ export default function App() {
     <div className="min-h-screen bg-[#111111] text-white font-sans flex flex-col items-center justify-center p-8 overflow-hidden">
       <div className="w-full max-w-4xl flex flex-col gap-8 relative">
 
-        <div className="text-center text-gray-400 text-sm leading-relaxed">
-          <p className="text-gray-300">a reel — and also, look, i can shaders</p>
-          <p className="text-xs text-gray-500 mt-1">each track gets its own URL · arrows or chevrons to cycle</p>
-        </div>
+        <div className="text-center text-gray-300 text-sm tracking-wide">Cameron Brooks</div>
 
         {/* Carousel Container */}
         <div className="relative w-full flex items-center justify-center">
