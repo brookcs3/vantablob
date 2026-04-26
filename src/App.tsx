@@ -1274,7 +1274,7 @@ export default function App() {
     { slug: 'dq2',        title: 'dq2',        family: ER, motion: ER_M, Blob: Card17Blob },
     { slug: 'elevated2',  title: 'elevated2',  family: SF, motion: SF_M, Blob: Card19Blob },
     { slug: 'untitled5',  title: 'untitled5',  family: ER, motion: ER_M, Blob: Card20Blob },
-    { slug: 'mashup24',   title: 'mashup24',   family: FD, motion: FD_M, Blob: Card21Blob },
+    { slug: 'mashup24',   title: 'big boss',   family: FD, motion: FD_M, Blob: Card21Blob },
     { slug: 'mirror',     title: 'mirror',     family: SF, motion: SF_M, Blob: Card22Blob },
   ];
   const VISIBLE_END = VISIBLE_START + VISIBLE_CARDS.length - 1;
