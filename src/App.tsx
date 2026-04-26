@@ -1253,23 +1253,29 @@ export default function App() {
   // (legacy / debug). Visible cycle starts at cardIndex 6 (zoogaze).
   // Each visible card maps to a URL hash slug for shareable links.
   const VISIBLE_START = 6;
+  const SF = 'Snare Flux';        // dual-band flux + notKick gate
+  const ER = 'Event Reactive';    // event flux + squiggle / split
+  const FD = 'Ferrofluid Direct'; // audio → shader uniforms
+  const SF_M = 'dual-band flux + notKick gate';
+  const ER_M = 'event flux + squiggle / split';
+  const FD_M = 'audio → shader uniforms';
   const VISIBLE_CARDS = [
-    { slug: 'zoogaze',    title: 'zoogaze',    family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
-    { slug: 'knees',      title: 'knees',      family: 'Event Reactive',    motion: 'event flux + squiggle / split' },
-    { slug: 'charcoal',   title: 'charcoal',   family: 'Ferrofluid Direct', motion: 'audio → shader uniforms' },
-    { slug: 'echoplxjm',  title: 'echoplxjm',  family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
-    { slug: 'gotsumthin', title: 'gotsumthin', family: 'Event Reactive',    motion: 'event flux + squiggle / split' },
-    { slug: 'softtouch',  title: 'softtouch',  family: 'Ferrofluid Direct', motion: 'audio → shader uniforms' },
-    { slug: 'foyou',      title: 'foyou',      family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
-    { slug: 'ca',         title: 'ca',         family: 'Event Reactive',    motion: 'event flux + squiggle / split' },
-    { slug: 'elevated',   title: 'elevated',   family: 'Ferrofluid Direct', motion: 'audio → shader uniforms' },
-    { slug: 'echoplxjm2', title: 'echoplxjm2', family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
-    { slug: 'dq2',        title: 'dq2',        family: 'Event Reactive',    motion: 'event flux + squiggle / split' },
-    { slug: 'threed',     title: 'threed',     family: 'Ferrofluid Direct', motion: 'audio → shader uniforms' },
-    { slug: 'elevated2',  title: 'elevated2',  family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
-    { slug: 'untitled5',  title: 'untitled5',  family: 'Event Reactive',    motion: 'event flux + squiggle / split' },
-    { slug: 'mashup24',   title: 'mashup24',   family: 'Ferrofluid Direct', motion: 'audio → shader uniforms' },
-    { slug: 'mirror',     title: 'mirror',     family: 'Snare Flux',        motion: 'dual-band flux + notKick gate' },
+    { slug: 'zoogaze',    title: 'zoogaze',    family: SF, motion: SF_M, Blob: Card7Blob  },
+    { slug: 'foyou',      title: 'foyou',      family: SF, motion: SF_M, Blob: Card13Blob },
+    { slug: 'softtouch',  title: 'softtouch',  family: FD, motion: FD_M, Blob: Card12Blob },
+    { slug: 'charcoal',   title: 'charcoal',   family: FD, motion: FD_M, Blob: Card9Blob  },
+    { slug: 'knees',      title: 'knees',      family: ER, motion: ER_M, Blob: Card8Blob  },
+    { slug: 'echoplxjm',  title: 'echoplxjm',  family: SF, motion: SF_M, Blob: Card10Blob },
+    { slug: 'gotsumthin', title: 'gotsumthin', family: ER, motion: ER_M, Blob: Card11Blob },
+    { slug: 'ca',         title: 'ca',         family: ER, motion: ER_M, Blob: Card14Blob },
+    { slug: 'elevated',   title: 'elevated',   family: FD, motion: FD_M, Blob: Card15Blob },
+    { slug: 'echoplxjm2', title: 'echoplxjm2', family: SF, motion: SF_M, Blob: Card16Blob },
+    { slug: 'dq2',        title: 'dq2',        family: ER, motion: ER_M, Blob: Card17Blob },
+    { slug: 'threed',     title: 'threed',     family: FD, motion: FD_M, Blob: Card18Blob },
+    { slug: 'elevated2',  title: 'elevated2',  family: SF, motion: SF_M, Blob: Card19Blob },
+    { slug: 'untitled5',  title: 'untitled5',  family: ER, motion: ER_M, Blob: Card20Blob },
+    { slug: 'mashup24',   title: 'mashup24',   family: FD, motion: FD_M, Blob: Card21Blob },
+    { slug: 'mirror',     title: 'mirror',     family: SF, motion: SF_M, Blob: Card22Blob },
   ];
   const VISIBLE_END = VISIBLE_START + VISIBLE_CARDS.length - 1;
   const TOTAL_CARDS = VISIBLE_START + VISIBLE_CARDS.length;
@@ -1412,7 +1418,9 @@ export default function App() {
                 transition={{ duration: 0.4 }}
                 className="absolute inset-0 flex items-center justify-center"
               >
-                {cardIndex === 0 ? (
+                {currentCard ? (
+                  <currentCard.Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
+                ) : cardIndex === 0 ? (
                   <MorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : cardIndex === 2 ? (
                   <GimbalMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} gimbalSpeed={gimbalSpeed} />
@@ -1422,38 +1430,6 @@ export default function App() {
                   <MusicMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : cardIndex === 5 ? (
                   <AdvancedAudioMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 6 ? (
-                  <Card7Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 7 ? (
-                  <Card8Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 8 ? (
-                  <Card9Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 9 ? (
-                  <Card10Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 10 ? (
-                  <Card11Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 11 ? (
-                  <Card12Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 12 ? (
-                  <Card13Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 13 ? (
-                  <Card14Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 14 ? (
-                  <Card15Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 15 ? (
-                  <Card16Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 16 ? (
-                  <Card17Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 17 ? (
-                  <Card18Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 18 ? (
-                  <Card19Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 19 ? (
-                  <Card20Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 20 ? (
-                  <Card21Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
-                ) : cardIndex === 21 ? (
-                  <Card22Blob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 ) : (
                   <OldMorphingBlob controllerRef={controllerRef} isVantablack={isVantablack} isJarvis={isJarvis} />
                 )}
