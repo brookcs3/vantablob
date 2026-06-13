@@ -641,47 +641,6 @@ const Card20Blob = makeCardBlob(Card20Controller);
 const Card21Blob = makeCardBlob(Card21Controller);
 const Card22Blob = makeCardBlob(Card22Controller);
 
-// Chroma-driven event conductor.
-// Polls controllerRef.current.chromaFlux every frame; on a rising-edge cross
-// above CHROMA_THRESHOLD (with COOLDOWN_MS gating) picks one action at random
-// and fires it. Tunables here so they can be adjusted by ear without diving in.
-const CHROMA_THRESHOLD = 0.3;
-const CHROMA_COOLDOWN_MS = 6000;
-
-function useChromaConductor(
-  controllerRef: React.MutableRefObject<any>,
-  enabled: boolean,
-  actionsRef: React.MutableRefObject<Array<() => void>>
-) {
-  useEffect(() => {
-    if (!enabled) return;
-    let frameId = 0;
-    let lastTriggerAt = 0;
-    let wasAboveThreshold = false;
-
-    const tick = () => {
-      const flux = controllerRef.current?.chromaFlux;
-      if (typeof flux === 'number') {
-        const isAbove = flux > CHROMA_THRESHOLD;
-        const now = performance.now();
-        if (isAbove && !wasAboveThreshold && now - lastTriggerAt > CHROMA_COOLDOWN_MS) {
-          const actions = actionsRef.current;
-          if (actions.length > 0) {
-            const pick = actions[Math.floor(Math.random() * actions.length)];
-            pick();
-            lastTriggerAt = now;
-          }
-        }
-        wasAboveThreshold = isAbove;
-      }
-      frameId = requestAnimationFrame(tick);
-    };
-    frameId = requestAnimationFrame(tick);
-
-    return () => cancelAnimationFrame(frameId);
-  }, [enabled, controllerRef, actionsRef]);
-}
-
 export default function App() {
   const controllerRef = useRef<any>(null);
   const [presetIndex, setPresetIndex] = useState(0);
@@ -689,19 +648,7 @@ export default function App() {
   const [isJarvis, setIsJarvis] = useState(false);
   const [gimbalSpeed, setGimbalSpeed] = useState(1.0);
   const [useTimeline, setUseTimeline] = useState(false);
-  const [autoConductor, setAutoConductor] = useState(true);
 
-  // Action list the conductor picks from on each chroma-flux trigger.
-  // Held in a ref so the rAF loop always sees the latest closures without
-  // having to tear down/rebuild the loop on every render.
-  const conductorActionsRef = useRef<Array<() => void>>([]);
-  conductorActionsRef.current = [
-    () => setIsVantablack(v => !v),
-    () => setIsJarvis(v => !v),
-  ];
-
-  useChromaConductor(controllerRef, autoConductor, conductorActionsRef);
-  
   // ─── Visible carousel (16 audio cards) ───
   // cardIndex 0–5 are kept in the codebase but hidden from the carousel
   // (legacy / debug). Visible cycle starts at cardIndex 6 (zoogaze).
@@ -851,11 +798,14 @@ export default function App() {
 
         {/* Carousel Container */}
         <div className="relative w-full flex items-center justify-center">
-          <button 
-            onClick={prevCard} 
-            className="absolute left-[-1rem] md:left-[-4rem] z-10 p-2 hover:bg-white/10 rounded-full transition-colors"
+          <button
+            onClick={prevCard}
+            className="absolute left-[-1rem] md:left-[-4rem] z-10 flex flex-col items-center gap-1 group"
           >
-            <ChevronLeft size={32} />
+            <span className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
+              <ChevronLeft size={32} />
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.25em] text-gray-500 font-light">prev</span>
           </button>
 
           {/* The Blob Card */}
@@ -891,11 +841,14 @@ export default function App() {
             </AnimatePresence>
           </div>
 
-          <button 
-            onClick={nextCard} 
-            className="absolute right-[-1rem] md:right-[-4rem] z-10 p-2 hover:bg-white/10 rounded-full transition-colors"
+          <button
+            onClick={nextCard}
+            className="absolute right-[-1rem] md:right-[-4rem] z-10 flex flex-col items-center gap-1 group"
           >
-            <ChevronRight size={32} />
+            <span className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
+              <ChevronRight size={32} />
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.25em] text-gray-500 font-light">next</span>
           </button>
         </div>
 
@@ -934,18 +887,6 @@ export default function App() {
             >
               {isJarvis ? 'Quad/Oil: ON' : 'Quad/Oil: OFF'}
             </button>
-            <button
-              onClick={() => setAutoConductor(v => !v)}
-              className={`px-6 py-3 border rounded-full font-medium transition-colors ${
-                autoConductor
-                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                  : 'border-white/20 hover:bg-white/10 text-gray-300'
-              }`}
-              title="Chroma-driven auto-toggle (vantablack / quad-oil)"
-            >
-              {autoConductor ? 'Auto: ON' : 'Auto: OFF'}
-            </button>
-
             {cardIndex === 5 && (
               <button 
                 onClick={() => setUseTimeline(!useTimeline)}
