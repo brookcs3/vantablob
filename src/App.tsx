@@ -16,7 +16,6 @@ import { Card12Controller } from './card12-controller';
 import { Card13Controller } from './card13-controller';
 import { Card14Controller } from './card14-controller';
 import { Card15Controller } from './card15-controller';
-import { Card16Controller } from './card16-controller';
 import { Card17Controller } from './card17-controller';
 import { Card18Controller } from './card18-controller';
 import { Card19Controller } from './card19-controller';
@@ -24,6 +23,7 @@ import { Card20Controller } from './card20-controller';
 import { Card21Controller } from './card21-controller';
 import { Card22Controller } from './card22-controller';
 import { Card25Controller } from './card25-controller';
+import { Card26Controller } from './card26-controller';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -634,7 +634,6 @@ const Card12Blob = makeCardBlob(Card12Controller);
 const Card13Blob = makeCardBlob(Card13Controller);
 const Card14Blob = makeCardBlob(Card14Controller);
 const Card15Blob = makeCardBlob(Card15Controller);
-const Card16Blob = makeCardBlob(Card16Controller);
 const Card17Blob = makeCardBlob(Card17Controller);
 const Card18Blob = makeCardBlob(Card18Controller);
 const Card19Blob = makeCardBlob(Card19Controller);
@@ -642,6 +641,7 @@ const Card20Blob = makeCardBlob(Card20Controller);
 const Card21Blob = makeCardBlob(Card21Controller);
 const Card22Blob = makeCardBlob(Card22Controller);
 const Card25Blob = makeCardBlob(Card25Controller);
+const Card26Blob = makeCardBlob(Card26Controller);
 
 export default function App() {
   const controllerRef = useRef<any>(null);
@@ -669,12 +669,12 @@ export default function App() {
     { slug: 'foyou',      title: 'foyou',      family: SF, motion: SF_M, Blob: Card13Blob },
     { slug: 'technoviking', title: 'techno viking', family: FD, motion: FD_M, Blob: Card25Blob },
     { slug: 'threed',     title: 'threed',     family: FD, motion: FD_M, Blob: Card18Blob },
+    { slug: 'whiner',     title: 'whiner',     family: FD, motion: FD_M, Blob: Card26Blob },
     { slug: 'softtouch',  title: 'softtouch',  family: FD, motion: FD_M, Blob: Card12Blob },
     { slug: 'charcoal',   title: 'charcoal',   family: FD, motion: FD_M, Blob: Card9Blob  },
     { slug: 'echoplxjm',  title: 'echoplxjm',  family: SF, motion: SF_M, Blob: Card10Blob },
     { slug: 'gotsumthin', title: 'gotsumthin', family: ER, motion: ER_M, Blob: Card11Blob },
     { slug: 'elevated',   title: 'elevated',   family: FD, motion: FD_M, Blob: Card15Blob },
-    { slug: 'echoplxjm2', title: 'echoplxjm2', family: SF, motion: SF_M, Blob: Card16Blob },
     { slug: 'dq2',        title: 'dq2',        family: ER, motion: ER_M, Blob: Card17Blob },
     { slug: 'elevated2',  title: 'elevated2',  family: SF, motion: SF_M, Blob: Card19Blob },
     { slug: 'untitled5',  title: 'untitled5',  family: ER, motion: ER_M, Blob: Card20Blob },
