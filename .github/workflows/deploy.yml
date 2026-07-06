@@ -29,6 +29,11 @@ jobs:
 
       - run: npm run build
 
+      # Tracks zip is too large for git (127MB > 100MB limit); it lives as a
+      # release asset and gets baked into the published site at deploy time.
+      - name: Fetch tracks zip from release
+        run: curl --fail -L -o dist/Cameron-Brooks-Tracks.zip https://github.com/brookcs3/vantablob/releases/download/tracks-2026-07/Cameron-Brooks-Tracks.zip
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
