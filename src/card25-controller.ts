@@ -450,7 +450,7 @@ export class Card25Controller {
     this.snarePrev = new Uint8Array(this.snareAnalyser.frequencyBinCount);
 
     try {
-      this.audioElement = new Audio('/ms.mp3');
+      this.audioElement = new Audio('/songs/technoviking.mp3');
       this.audioElement.crossOrigin = 'anonymous';
       this.audioElement.loop = true;
       this.source = this.audioContext.createMediaElementSource(this.audioElement);

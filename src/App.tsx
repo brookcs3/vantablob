@@ -23,6 +23,7 @@ import { Card19Controller } from './card19-controller';
 import { Card20Controller } from './card20-controller';
 import { Card21Controller } from './card21-controller';
 import { Card22Controller } from './card22-controller';
+import { Card25Controller } from './card25-controller';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -640,6 +641,7 @@ const Card19Blob = makeCardBlob(Card19Controller);
 const Card20Blob = makeCardBlob(Card20Controller);
 const Card21Blob = makeCardBlob(Card21Controller);
 const Card22Blob = makeCardBlob(Card22Controller);
+const Card25Blob = makeCardBlob(Card25Controller);
 
 export default function App() {
   const controllerRef = useRef<any>(null);
@@ -665,6 +667,7 @@ export default function App() {
     { slug: 'knees',      title: 'knees',      family: ER, motion: ER_M, Blob: Card8Blob  },
     { slug: 'ca',         title: 'ca',         family: ER, motion: ER_M, Blob: Card14Blob },
     { slug: 'foyou',      title: 'foyou',      family: SF, motion: SF_M, Blob: Card13Blob },
+    { slug: 'technoviking', title: 'techno viking', family: FD, motion: FD_M, Blob: Card25Blob },
     { slug: 'threed',     title: 'threed',     family: FD, motion: FD_M, Blob: Card18Blob },
     { slug: 'softtouch',  title: 'softtouch',  family: FD, motion: FD_M, Blob: Card12Blob },
     { slug: 'charcoal',   title: 'charcoal',   family: FD, motion: FD_M, Blob: Card9Blob  },
