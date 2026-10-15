@@ -675,11 +675,11 @@ function makeFilmCard(vimeoId: string, title: string) {
 
 const ChildOfTheSkyFilm = makeFilmCard('300688799', 'Child of the Sky');
 
-// A carousel card that plays a video hosted with the site (public/videos), with the same props and phone inset as the
-// film card. With autoplay it starts when the card appears: with sound once the visitor has interacted with the page
-// (arrow click or key), otherwise muted, because browsers block unmuted autoplay, with a button to turn the sound on.
-function makeVideoCard(src: string, title: string, autoplay = false) {
-  return function VideoCard({
+// A carousel card whose whole background is a video hosted with the site (public/videos), scaled to fill the card.
+// It plays on a loop: with sound once the visitor has interacted with the page (arrow click or key), otherwise muted,
+// because browsers block unmuted autoplay; clicking the video then turns the sound on.
+function makeBackdropVideoCard(src: string) {
+  return function BackdropVideoCard({
     controllerRef
   }: {
     controllerRef: React.MutableRefObject<any>;
@@ -688,44 +688,33 @@ function makeVideoCard(src: string, title: string, autoplay = false) {
     gimbalSpeed: number;
   }) {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [mutedFallback, setMutedFallback] = useState(false);
 
     useEffect(() => {
       controllerRef.current = null;
       const video = videoRef.current;
-      if (!autoplay || !video) return;
+      if (!video) return;
       video.play().catch(() => {
         video.muted = true;
-        setMutedFallback(true);
         video.play().catch(() => {});
       });
     }, []);
 
     const unmute = () => {
       const video = videoRef.current;
-      if (!video) return;
+      if (!video || !video.muted) return;
       video.muted = false;
-      setMutedFallback(false);
       video.play().catch(() => {});
     };
 
     return (
-      <div className="relative w-full h-full bg-black px-8 md:px-0">
-        <video ref={videoRef} src={src} title={title} className="w-full h-full object-contain" controls playsInline preload={autoplay ? 'auto' : 'metadata'} />
-        {mutedFallback && (
-          <button
-            onClick={unmute}
-            className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/70 border border-white/20 text-sm text-white hover:bg-black/90 transition-colors"
-          >
-            Tap for sound
-          </button>
-        )}
+      <div className="relative w-full h-full bg-black" onClick={unmute}>
+        <video ref={videoRef} src={src} className="absolute inset-0 w-full h-full object-cover" loop playsInline preload="auto" />
       </div>
     );
   };
 }
 
-const Demo2Video = makeVideoCard('/videos/demo2.mp4', 'demo2', true);
+const Demo2Video = makeBackdropVideoCard('/videos/demo2.mp4');
 
 export default function App() {
   const controllerRef = useRef<any>(null);
