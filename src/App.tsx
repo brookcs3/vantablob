@@ -643,6 +643,38 @@ const Card22Blob = makeCardBlob(Card22Controller);
 const Card25Blob = makeCardBlob(Card25Controller);
 const Card26Blob = makeCardBlob(Card26Controller);
 
+// A carousel card that plays a film from Vimeo instead of a blob. It takes the same props as a blob card so the
+// carousel renders it the same way, and it clears controllerRef so the blob-only controls have nothing to act on.
+function makeFilmCard(vimeoId: string, title: string) {
+  return function FilmCard({
+    controllerRef
+  }: {
+    controllerRef: React.MutableRefObject<any>;
+    isVantablack: boolean;
+    isJarvis: boolean;
+    gimbalSpeed: number;
+  }) {
+    useEffect(() => {
+      controllerRef.current = null;
+    }, []);
+
+    // On phones the prev/next arrows reach into the card, so the film is inset to keep taps on the picture.
+    return (
+      <div className="w-full h-full bg-black px-8 md:px-0">
+        <iframe
+          src={`https://player.vimeo.com/video/${vimeoId}?title=0&byline=0&portrait=0`}
+          title={title}
+          className="w-full h-full"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  };
+}
+
+const ChildOfTheSkyFilm = makeFilmCard('300688799', 'Child of the Sky');
+
 export default function App() {
   const controllerRef = useRef<any>(null);
   const [presetIndex, setPresetIndex] = useState(0);
@@ -651,7 +683,7 @@ export default function App() {
   const [gimbalSpeed, setGimbalSpeed] = useState(1.0);
   const [useTimeline, setUseTimeline] = useState(false);
 
-  // ─── Visible carousel (16 audio cards) ───
+  // ─── Visible carousel (audio cards plus one film card) ───
   // cardIndex 0–5 are kept in the codebase but hidden from the carousel
   // (legacy / debug). Visible cycle starts at cardIndex 6 (zoogaze).
   // Each visible card maps to a URL hash slug for shareable links.
@@ -666,12 +698,13 @@ export default function App() {
     { slug: 'zoogaze',    title: 'zoogaze',    family: SF, motion: SF_M, Blob: Card7Blob  },
     { slug: 'knees',      title: 'knees',      family: ER, motion: ER_M, Blob: Card8Blob  },
     { slug: 'ca',         title: 'ca',         family: ER, motion: ER_M, Blob: Card14Blob },
+    { slug: 'child-of-the-sky', title: 'Child of the Sky', family: 'Composer', motion: 'Phillip Montgomery & Denna Thomsen', Blob: ChildOfTheSkyFilm, isFilm: true },
     { slug: 'foyou',      title: 'foyou',      family: SF, motion: SF_M, Blob: Card13Blob },
     { slug: 'technoviking', title: 'techno viking', family: FD, motion: FD_M, Blob: Card25Blob },
     { slug: 'threed',     title: 'threed',     family: FD, motion: FD_M, Blob: Card18Blob },
     { slug: 'whiner',     title: 'whiner',     family: FD, motion: FD_M, Blob: Card26Blob },
     { slug: 'softtouch',  title: 'softtouch',  family: FD, motion: FD_M, Blob: Card12Blob },
-    { slug: 'charcoal',   title: 'charcoal',   family: FD, motion: FD_M, Blob: Card9Blob  },
+    { slug: 'scarlet',    title: 'scarlet',    family: FD, motion: FD_M, Blob: Card9Blob, aliases: ['charcoal'] },
     { slug: 'echoplxjm',  title: 'echoplxjm',  family: SF, motion: SF_M, Blob: Card10Blob },
     { slug: 'gotsumthin', title: 'gotsumthin', family: ER, motion: ER_M, Blob: Card11Blob },
     { slug: 'elevated',   title: 'elevated',   family: FD, motion: FD_M, Blob: Card15Blob },
@@ -681,6 +714,9 @@ export default function App() {
     { slug: 'mashup24',   title: 'big boss',   family: FD, motion: FD_M, Blob: Card21Blob },
     { slug: 'mirror',     title: 'mirror',     family: SF, motion: SF_M, Blob: Card22Blob },
   ];
+  // A renamed card keeps its old slug in `aliases`, so links shared under the old name still open it.
+  const findCardBySlug = (slug: string) =>
+    VISIBLE_CARDS.findIndex(c => c.slug === slug || (c.aliases ?? []).includes(slug));
   const VISIBLE_END = VISIBLE_START + VISIBLE_CARDS.length - 1;
   const TOTAL_CARDS = VISIBLE_START + VISIBLE_CARDS.length;
 
@@ -688,7 +724,7 @@ export default function App() {
   const [cardIndex, setCardIndex] = useState(() => {
     if (typeof window === 'undefined') return VISIBLE_START;
     const slug = window.location.hash.replace('#', '');
-    const i = VISIBLE_CARDS.findIndex(c => c.slug === slug);
+    const i = findCardBySlug(slug);
     return i >= 0 ? VISIBLE_START + i : VISIBLE_START;
   });
 
@@ -705,7 +741,7 @@ export default function App() {
   useEffect(() => {
     const onHashChange = () => {
       const slug = window.location.hash.replace('#', '');
-      const i = VISIBLE_CARDS.findIndex(c => c.slug === slug);
+      const i = findCardBySlug(slug);
       if (i >= 0) setCardIndex(VISIBLE_START + i);
     };
     window.addEventListener('hashchange', onHashChange);
@@ -813,7 +849,7 @@ export default function App() {
 
           {/* The Blob Card */}
           <div 
-            className="relative w-full aspect-square md:aspect-video flex items-center justify-center overflow-hidden rounded-[40px] transition-colors duration-500 shadow-2xl border border-white/10"
+            className={`relative w-full ${currentCard?.isFilm ? 'aspect-video' : 'aspect-square md:aspect-video'} flex items-center justify-center overflow-hidden rounded-[40px] transition-colors duration-500 shadow-2xl border border-white/10`}
             style={{ backgroundColor: cardIndex === 0 ? MASS_PRESETS[presetIndex % MASS_PRESETS.length].backgroundColor : OLD_MASS_PRESETS[presetIndex % OLD_MASS_PRESETS.length].backgroundColor }}
           >
             <AnimatePresence mode="wait">
@@ -858,7 +894,9 @@ export default function App() {
         {/* Controls */}
         <div className="flex flex-col items-center gap-6">
           <div className="flex flex-wrap justify-center gap-4">
-            <button 
+            {/* Blob-only controls stay in the layout but invisible on the film card, so the page does not jump. */}
+            <span className={currentCard?.isFilm ? 'contents invisible' : 'contents'} aria-hidden={currentCard?.isFilm || undefined}>
+            <button
               onClick={handleCycleVariant}
               className="px-6 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition-colors"
             >
@@ -890,6 +928,7 @@ export default function App() {
             >
               {isJarvis ? 'Quad/Oil: ON' : 'Quad/Oil: OFF'}
             </button>
+            </span>
             {cardIndex === 5 && (
               <button 
                 onClick={() => setUseTimeline(!useTimeline)}
@@ -910,7 +949,8 @@ export default function App() {
                     controllerRef.current.enableAudio();
                   }
                 }}
-                className="px-6 py-3 bg-fuchsia-600 text-white border border-fuchsia-500 rounded-full font-medium hover:bg-fuchsia-500 transition-colors shadow-[0_0_15px_rgba(192,38,211,0.5)] flex items-center gap-2"
+                aria-hidden={currentCard.isFilm || undefined}
+                className={`${currentCard.isFilm ? 'invisible ' : ''}px-6 py-3 bg-fuchsia-600 text-white border border-fuchsia-500 rounded-full font-medium hover:bg-fuchsia-500 transition-colors shadow-[0_0_15px_rgba(192,38,211,0.5)] flex items-center gap-2`}
               >
                 <Play size={18} />
                 Play {currentCard.title}
@@ -927,7 +967,7 @@ export default function App() {
             )}
           </div>
 
-          <div className={`w-full max-w-xs mx-auto mt-2 transition-opacity duration-300 ${cardIndex >= VISIBLE_START || cardIndex === 2 ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+          <div className={`w-full max-w-xs mx-auto mt-2 transition-opacity duration-300 ${currentCard?.isFilm ? 'invisible' : ''} ${cardIndex >= VISIBLE_START || cardIndex === 2 ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
             <div className="flex justify-between text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">
               <span>Gimbal Speed</span>
               <span>{gimbalSpeed.toFixed(1)}x</span>
@@ -947,15 +987,15 @@ export default function App() {
           {currentCard && (
             <dl className="flex gap-8 text-center">
               <div>
-                <dt className="text-sm text-gray-500 mb-1">Track</dt>
+                <dt className="text-sm text-gray-500 mb-1">{currentCard.isFilm ? 'Film' : 'Track'}</dt>
                 <dd className="font-medium text-gray-300">{currentCard.title}</dd>
               </div>
               <div>
-                <dt className="text-sm text-gray-500 mb-1">Family</dt>
+                <dt className="text-sm text-gray-500 mb-1">{currentCard.isFilm ? 'Role' : 'Family'}</dt>
                 <dd className="font-medium text-gray-300">{currentCard.family}</dd>
               </div>
               <div>
-                <dt className="text-sm text-gray-500 mb-1">Motion</dt>
+                <dt className="text-sm text-gray-500 mb-1">{currentCard.isFilm ? 'Film by' : 'Motion'}</dt>
                 <dd className="font-medium text-gray-300">{currentCard.motion}</dd>
               </div>
             </dl>
