@@ -698,7 +698,7 @@ export default function App() {
     { slug: 'zoogaze',    title: 'zoogaze',    family: SF, motion: SF_M, Blob: Card7Blob  },
     { slug: 'knees',      title: 'knees',      family: ER, motion: ER_M, Blob: Card8Blob  },
     { slug: 'ca',         title: 'ca',         family: ER, motion: ER_M, Blob: Card14Blob },
-    { slug: 'child-of-the-sky', title: 'Child of the Sky', family: 'Co-composer', motion: 'Phillip Montgomery & Denna Thomsen', Blob: ChildOfTheSkyFilm, isFilm: true },
+    { slug: 'child-of-the-sky', title: 'Child of the Sky', family: 'Composer', motion: 'Phillip Montgomery & Denna Thomsen', Blob: ChildOfTheSkyFilm, isFilm: true },
     { slug: 'foyou',      title: 'foyou',      family: SF, motion: SF_M, Blob: Card13Blob },
     { slug: 'technoviking', title: 'techno viking', family: FD, motion: FD_M, Blob: Card25Blob },
     { slug: 'threed',     title: 'threed',     family: FD, motion: FD_M, Blob: Card18Blob },
