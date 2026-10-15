@@ -24,6 +24,7 @@ import { Card21Controller } from './card21-controller';
 import { Card22Controller } from './card22-controller';
 import { Card25Controller } from './card25-controller';
 import { Card26Controller } from './card26-controller';
+import { Card28Controller } from './card28-controller';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -642,6 +643,7 @@ const Card21Blob = makeCardBlob(Card21Controller);
 const Card22Blob = makeCardBlob(Card22Controller);
 const Card25Blob = makeCardBlob(Card25Controller);
 const Card26Blob = makeCardBlob(Card26Controller);
+const Card28Blob = makeCardBlob(Card28Controller);
 
 // A carousel card that plays a film from Vimeo instead of a blob. It takes the same props as a blob card so the
 // carousel renders it the same way, and it clears controllerRef so the blob-only controls have nothing to act on.
@@ -747,6 +749,7 @@ export default function App() {
     { slug: 'whiner',     title: 'whiner',     family: FD, motion: FD_M, Blob: Card26Blob },
     { slug: 'softtouch',  title: 'softtouch',  family: FD, motion: FD_M, Blob: Card12Blob },
     { slug: 'scarlet',    title: 'scarlet',    family: FD, motion: FD_M, Blob: Card9Blob, aliases: ['charcoal'] },
+    { slug: 'where-djangos-at', title: "where django's at", family: ER, motion: ER_M, Blob: Card28Blob },
     { slug: 'echoplxjm',  title: 'echoplxjm',  family: SF, motion: SF_M, Blob: Card10Blob },
     { slug: 'gotsumthin', title: 'gotsumthin', family: ER, motion: ER_M, Blob: Card11Blob },
     { slug: 'elevated',   title: 'elevated',   family: FD, motion: FD_M, Blob: Card15Blob },
