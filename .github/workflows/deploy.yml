@@ -34,11 +34,12 @@ jobs:
       - name: Fetch tracks zip from release
         run: curl --fail -L --retry 3 --retry-delay 5 --retry-all-errors -o dist/Cameron-Brooks-Tracks.zip https://github.com/brookcs3/vantablob/releases/download/tracks-2026-07/Cameron-Brooks-Tracks.zip
 
-      # Videos over 100MB ride the same way; sub2c is served at /videos/sub2c.mp4.
+      # Videos over 100MB ride the same way; sub2c and foyou are served at /videos/<name>.mp4.
       - name: Fetch large videos from release
         run: |
           mkdir -p dist/videos
           curl --fail -L --retry 3 --retry-delay 5 --retry-all-errors -o dist/videos/sub2c.mp4 https://github.com/brookcs3/vantablob/releases/download/videos-2026-10/sub2c.mp4
+          curl --fail -L --retry 3 --retry-delay 5 --retry-all-errors -o dist/videos/foyou.mp4 https://github.com/brookcs3/vantablob/releases/download/videos-2026-10/foyou.mp4
 
       - uses: actions/upload-pages-artifact@v3
         with:

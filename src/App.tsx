@@ -678,9 +678,14 @@ function makeFilmCard(vimeoId: string, title: string) {
 const ChildOfTheSkyFilm = makeFilmCard('300688799', 'Child of the Sky');
 
 // A carousel card whose whole background is a video hosted with the site (public/videos), scaled to fill the card.
-// It plays on a loop: with sound once the visitor has interacted with the page (arrow click or key), otherwise muted,
-// because browsers block unmuted autoplay; clicking the video then turns the sound on.
-function makeBackdropVideoCard(src: string) {
+// It plays on a loop with sound. Switching to the card is a click or key press, which lets the browser play audio.
+// Browsers block sound before any interaction (a direct link): by default the video then plays muted and a click on it
+// turns the sound on; with neverMute it never plays muted and waits for the visitor's first click or key instead.
+// startDelayMs holds playback for a moment after the card appears.
+function makeBackdropVideoCard(
+  src: string,
+  { neverMute = false, startDelayMs = 0 }: { neverMute?: boolean; startDelayMs?: number } = {}
+) {
   return function BackdropVideoCard({
     controllerRef
   }: {
@@ -695,10 +700,32 @@ function makeBackdropVideoCard(src: string) {
       controllerRef.current = null;
       const video = videoRef.current;
       if (!video) return;
-      video.play().catch(() => {
+      let waitingForGesture = false;
+      const playOnGesture = () => {
+        stopWaiting();
+        video.play().catch(() => {});
+      };
+      const stopWaiting = () => {
+        if (!waitingForGesture) return;
+        waitingForGesture = false;
+        window.removeEventListener('pointerdown', playOnGesture);
+        window.removeEventListener('keydown', playOnGesture);
+      };
+      const start = () => video.play().catch(() => {
+        if (neverMute) {
+          waitingForGesture = true;
+          window.addEventListener('pointerdown', playOnGesture);
+          window.addEventListener('keydown', playOnGesture);
+          return;
+        }
         video.muted = true;
         video.play().catch(() => {});
       });
+      const timer = window.setTimeout(start, startDelayMs);
+      return () => {
+        window.clearTimeout(timer);
+        stopWaiting();
+      };
     }, []);
 
     const unmute = () => {
@@ -717,6 +744,8 @@ function makeBackdropVideoCard(src: string) {
 }
 
 const Demo2Video = makeBackdropVideoCard('/videos/demo2.mp4');
+// foyou plays Cameron's vertical (9:16) video with its own audio and is never muted; the 147MB file is fetched from a release at deploy time.
+const FoyouVideo = makeBackdropVideoCard('/videos/foyou.mp4', { neverMute: true, startDelayMs: 1200 });
 
 export default function App() {
   const controllerRef = useRef<any>(null);
@@ -741,9 +770,9 @@ export default function App() {
   const VISIBLE_CARDS = [
     { slug: 'zoogaze',    title: 'zoogaze',    family: SF, motion: SF_M, Blob: Card7Blob  },
     { slug: 'knees',      title: 'knees',      family: ER, motion: ER_M, Blob: Card8Blob  },
+    { slug: 'foyou',      title: 'foyou',      family: 'video', motion: '', Blob: FoyouVideo, isMedia: true, aspect: 'aspect-[9/16] max-w-[calc(78vh*9/16)]', labels: ['Track', 'Format', ''] },
     { slug: 'demo2',      title: 'demo2',      family: 'video', motion: '', Blob: Demo2Video, isMedia: true, aliases: ['ca'], labels: ['Track', 'Format', ''] },
     { slug: 'child-of-the-sky', title: 'Child of the Sky', family: 'Composer', motion: 'Phillip Montgomery & Denna Thomsen', Blob: ChildOfTheSkyFilm, isMedia: true, aspect: 'aspect-video', labels: ['Film', 'Role', 'Film by'] },
-    { slug: 'foyou',      title: 'foyou',      family: SF, motion: SF_M, Blob: Card13Blob },
     { slug: 'technoviking', title: 'techno viking', family: FD, motion: FD_M, Blob: Card25Blob },
     { slug: 'threed',     title: 'threed',     family: FD, motion: FD_M, Blob: Card18Blob },
     { slug: 'whiner',     title: 'whiner',     family: FD, motion: FD_M, Blob: Card26Blob },
